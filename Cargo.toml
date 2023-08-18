@@ -14,5 +14,6 @@ rcudnn = "1.8.0"
 rcudnn-sys = "0.5.0"
 rcublas = "0.6.0"
 rcublas-sys = "0.5.0"
+const_guards = "0.1.3"
 [dependencies.nncombinator]
 path = "../nncombinator"
