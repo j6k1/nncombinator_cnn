@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use nncombinator::arr::{Arr, ArrView, ArrViewMut};
+use nncombinator::arr::{Arr, ArrView, ArrViewMut, VecArr};
 use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::{AsRawMutSlice, AsRawSlice};
 use rayon::iter::plumbing;
@@ -83,12 +83,11 @@ impl<T,const C:usize,const H:usize,const W:usize> TryFrom<Vec<Image<T,H,W>>> for
         }
     }
 }
-impl<T,const C:usize,const H:usize,const W:usize> TryFrom<Images<T,C,H,W>> for Arr<T,{ C * H * W }>
+impl<T,const C:usize,const H:usize,const W:usize> From<Images<T,C,H,W>> for Arr<T,{ C * H * W }>
     where T: Default + Clone + Send {
-    type Error = SizeMismatchError;
 
-    fn try_from(images: Images<T,C,H,W>) -> Result<Self,SizeMismatchError> {
-        images.arr.try_into()
+    fn from(images: Images<T,C,H,W>) -> Self {
+        images.arr.try_into().expect("An error occurred in the conversion from Images to Arr. The sizes do not match.")
     }
 }
 impl<T,const C:usize,const H:usize,const W:usize> From<Arr<T,{ C * H * W }>> for Images<T,C,H,W>
@@ -749,6 +748,25 @@ impl<'data,T,const C:usize,const H:usize,const W:usize> From<Vec<ImagesView<'dat
         VecImages {
             arr:buffer.into_boxed_slice(),
             len:len,
+        }
+    }
+}
+impl<T,const C:usize,const H:usize,const W:usize> From<VecImages<T,C,H,W>> for VecArr<T,Arr<T,{ C * H * W }>>
+    where T: Default + Clone + Copy + Send {
+
+    fn from(images: VecImages<T,C,H,W>) -> Self {
+        images.arr.try_into().expect("An error occurred in the conversion from Images to VecArr. The sizes do not match.")
+    }
+}
+impl<T,const C:usize,const H:usize,const W:usize> From<VecArr<T,Arr<T,{ C * H * W }>>> for VecImages<T,C,H,W>
+    where T: Default + Clone + Copy + Send {
+
+    fn from(s: VecArr<T,Arr<T,{ C * H * W }>>) -> Self {
+        let len = s.len();
+
+        VecImages {
+            arr: s.into(),
+            len: len
         }
     }
 }
