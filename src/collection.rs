@@ -532,6 +532,15 @@ impl<'data,T, const C:usize, const H:usize, const W:usize> IntoParallelRefIterat
         ImagesParIter { arr: &self.arr }
     }
 }
+impl<'data,T, const C:usize, const H:usize, const W:usize> IntoParallelRefIterator<'data> for ImagesView<'data,T,C,H,W>
+    where T: Default + Clone + Send + Sync + 'static {
+    type Iter = ImagesParIter<'data,T,C,H,W>;
+    type Item = ImageView<'data,T,H,W>;
+
+    fn par_iter(&'data self) -> Self::Iter {
+        ImagesParIter { arr: &self.arr }
+    }
+}
 /// ParallelIterator implementation for Image
 #[derive(Debug)]
 pub struct ImageParIter<'data,T,const H:usize,const W:usize> where T: Default + Clone + Send {
@@ -709,8 +718,7 @@ impl<T,const C:usize,const H:usize,const W:usize> From<Vec<Images<T,C,H,W>>> for
     }
 }
 impl<'data,T,const C:usize,const H:usize,const W:usize> From<Vec<ImagesView<'data,T,C,H,W>>>
-for VecImages<T,C,H,W> where T: Default + Clone + Copy + Send {
-
+    for VecImages<T,C,H,W> where T: Default + Clone + Copy + Send {
     fn from(items: Vec<ImagesView<'data,T,C,H,W>>) -> Self {
         let len = items.len();
 
