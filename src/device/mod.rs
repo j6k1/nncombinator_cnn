@@ -1,6 +1,6 @@
 use const_guards::guard;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
-use nncombinator::arr::{Arr, Arr4};
+use nncombinator::arr::{Arr, Arr2, Arr3, Arr4};
 use nncombinator::device::DeviceCpu;
 use nncombinator::error::{EvaluateError, TrainingError};
 use nncombinator::error::SizeMismatchError;
@@ -98,7 +98,7 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
                     (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
                         k.iter().enumerate()
                             .skip_while(|(oy,_)| sy + oy < PAD)
-                            .take_while(|(oy,_)| sy + oy < H).zip(i.clone().skip(sy - PAD))
+                            .take_while(|(oy,_)| sy + oy < H).zip(i.iter().skip(sy - PAD))
                             .map(|((_,k), i)| {
                                 k.iter().enumerate()
                                     .skip_while(|(ox,_)| sx + ox < PAD)
@@ -155,7 +155,31 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
     fn backward_weight_gradient_convolution(&self,loss: &Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
                                             input: &Images<U, C, H, W>)
         -> Result<Arr4<U, K, C, FH, FW>, TrainingError> {
-        todo!()
+        Ok(loss.par_iter().map(|l| {
+            input.par_iter().map(|i| {
+                (0..FH).into_par_iter().map(|fy| {
+                    (0..FW).into_par_iter().map(|fx| {
+                        l.par_iter().enumerate().fold(|| U::default(), | acc,(oy,l) | {
+                            l.par_iter().enumerate().fold(|| U::default(), | acc, (ox,&l) | {
+                                i.iter().enumerate().skip(oy * S + ((PAD + oy * S) % FH) * fy)
+                                    .step_by(S).take_while(|(y,_)| {
+                                    y + PAD < oy * S + FH
+                                }).fold(U::default(), | acc, (_,r) | {
+                                    r.iter().enumerate().skip(ox * S + ((PAD + ox * S) % FW) + fx)
+                                        .step_by(S).take_while(|(x,_)| {
+                                        x + PAD < ox * S + FW
+                                    }).fold(U::default(), | acc, (_,&p) | acc + l * p)
+                                })
+                            }).reduce(|| U::default(), | acc, p | {
+                                acc + p
+                            })
+                        }).reduce(|| U::default(), | acc, p | {
+                            acc + p
+                        })
+                    }).collect::<Vec<U>>().try_into()
+                }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into()
+            }).collect::<Result<Vec<Arr2<U,FH,FW>>,SizeMismatchError>>()?.try_into()
+        }).collect::<Result<Vec<Arr3<U,C,FH,FW>>,SizeMismatchError>>()?.try_into()?)
     }
     fn batch_forward_convolution<const CI: usize>(&self, input: &VecImages<U, C, H, W>, kernel: &Arr4<U,K,C,H,W>)
         -> Result<VecImages<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {

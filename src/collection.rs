@@ -352,31 +352,15 @@ impl<'a,T,const W:usize> Iterator for ImageIterMut<'a,T,W> where T: Default + Cl
 pub struct ImageView<'a,T,const H:usize,const W:usize> where T: Default + Clone + Send {
     arr:&'a [T],
 }
+impl<'a,T,const H:usize,const W:usize> ImageView<'a,T,H,W> where T: Default + Clone + Send {
+    /// Obtaining a immutable iterator
+    pub fn iter(&'a self) -> ImageIter<'a,T,W> {
+        ImageIter { arr: &*self.arr }
+    }
+}
 impl<'a,T,const H:usize,const W:usize> Clone for ImageView<'a,T,H,W> where T: Default + Clone + Send {
     fn clone(&self) -> Self {
         ImageView{ arr: self.arr }
-    }
-}
-impl<'a,T,const H:usize,const W:usize> ImageView<'a,T,H,W> where T: Default + Clone + Send {
-    /// Number of elements encompassed by the iterator element
-    const fn element_size(&self) -> usize {
-        W
-    }
-}
-impl<'a,T,const H:usize,const W:usize> Iterator for ImageView<'a,T,H,W> where T: Default + Clone + Send {
-    type Item = ArrView<'a,T,W>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let slice = std::mem::replace(&mut self.arr, &mut []);
-        if slice.is_empty() {
-            None
-        } else {
-            let (l,r) = slice.split_at(self.element_size());
-
-            self.arr = r;
-
-            Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrView. The sizes do not match."))
-        }
     }
 }
 impl<'a,T,const H:usize, const W:usize> Index<(usize,usize)> for ImageView<'a,T,H,W>
@@ -403,25 +387,14 @@ pub struct ImageViewMut<'a,T,const H:usize,const W:usize> where T: Default + Clo
     arr:&'a mut [T],
 }
 impl<'a,T,const H:usize,const W:usize> ImageViewMut<'a,T,H,W> where T: Default + Clone + Send {
-    /// Number of elements encompassed by the iterator element
-    const fn element_size(&self) -> usize {
-        W
+    /// Obtaining a immutable iterator
+    pub fn iter(&'a self) -> ImageIter<'a,T,W> {
+        ImageIter { arr: &*self.arr }
     }
-}
-impl<'a,T,const H:usize,const W:usize> Iterator for ImageViewMut<'a,T,H,W> where T: Default + Clone + Send {
-    type Item = ArrViewMut<'a,T,W>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let slice = std::mem::replace(&mut self.arr, &mut []);
-        if slice.is_empty() {
-            None
-        } else {
-            let (l,r) = slice.split_at_mut(self.element_size());
-
-            self.arr = r;
-
-            Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrViewMut. The sizes do not match."))
-        }
+    /// Obtaining a mutable iterator
+    pub fn iter_mut(&'a mut self) -> ImageIterMut<'a,T,W> {
+        ImageIterMut { arr: &mut *self.arr }
     }
 }
 impl<'a,T,const H:usize, const W:usize> Index<(usize,usize)> for ImageViewMut<'a,T,H,W> where T: Default + Clone + Send {
