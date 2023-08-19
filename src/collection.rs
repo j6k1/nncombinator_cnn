@@ -1,4 +1,5 @@
 use std::ops::{Index, IndexMut};
+
 use nncombinator::arr::{Arr, ArrView, ArrViewMut};
 use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::{AsRawMutSlice, AsRawSlice};
@@ -79,6 +80,23 @@ impl<T,const C:usize,const H:usize,const W:usize> TryFrom<Vec<Image<T,H,W>>> for
             Ok(Images {
                 arr: buffer.into_boxed_slice()
             })
+        }
+    }
+}
+impl<T,const C:usize,const H:usize,const W:usize> TryFrom<Images<T,C,H,W>> for Arr<T,{ C * H * W }>
+    where T: Default + Clone + Send {
+    type Error = SizeMismatchError;
+
+    fn try_from(images: Images<T,C,H,W>) -> Result<Self,SizeMismatchError> {
+        images.arr.try_into()
+    }
+}
+impl<T,const C:usize,const H:usize,const W:usize> From<Arr<T,{ C * H * W }>> for Images<T,C,H,W>
+    where T: Default + Clone + Send {
+
+    fn from(s: Arr<T,{ C * H * W }>) -> Self {
+        Images {
+            arr: s.into()
         }
     }
 }
