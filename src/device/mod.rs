@@ -124,10 +124,10 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
 
     fn backward_convolution(&self, loss: &Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, kernel: &Arr4<U,K,C,H,W>)
         -> Result<Images<U, C, H, W>, TrainingError> {
-        Ok(kernel.par_iter().map(|k| {
-            (0..H).into_par_iter().map(|sy| {
-                (0..W).into_par_iter().map(|sx| {
-                    loss.par_iter().zip(k.par_iter()).map(|(l, k)| {
+        Ok(loss.par_iter().zip(kernel.par_iter()).map(|(l,k)| {
+            k.par_iter().map(move |k| {
+                (0..H).into_par_iter().map(|sy| {
+                    (0..W).into_par_iter().map(|sx| {
                         let l = l[((sy + PAD) / S, (sx + PAD) / S)];
 
                         k.iter().skip((sy + PAD) % S).step_by(S).map(|k| {
@@ -135,10 +135,22 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
                                 acc + l
                             })
                         }).fold(U::default(), |acc, l| acc + l)
-                    }).reduce(|| U::default(), | acc, l | acc + l)
-                }).collect::<Vec<U>>().try_into()
-            }).collect::<Result<Vec<Arr<U,W>>,SizeMismatchError>>()?.try_into()
-        }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()?.try_into()?)
+                    }).collect::<Vec<U>>()
+                }).collect::<Vec<Vec<U>>>()
+            }).collect::<Vec<Vec<Vec<U>>>>()
+        }).fold(|| Ok(Images::new()), | acc,i | {
+            acc.and_then(|acc| acc.par_iter().zip(i).map(|(acc,i)| {
+                acc.par_iter().zip(i).map(|(acc,i)| {
+                    acc.par_iter().zip(i).map(|(&acc,p)| acc + p).collect::<Vec<U>>().try_into()
+                }).collect::<Result<Vec<Arr<U,W>>,SizeMismatchError>>()?.try_into()
+            }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()?.try_into())
+        }).reduce(|| Ok(Images::new()), | acc,i | {
+            acc.and_then(|acc| i.and_then(|i| acc.par_iter().zip(i.par_iter()).map(|(acc,i)| {
+                acc.par_iter().zip(i.par_iter()).map(|(acc,i)| {
+                    acc.par_iter().zip(i.par_iter()).map(|(&acc,&p)| acc + p).collect::<Vec<U>>().try_into()
+                }).collect::<Result<Vec<Arr<U,W>>,SizeMismatchError>>()?.try_into()
+            }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()?.try_into()))
+        })?)
     }
     fn backward_weight_gradient_convolution(&self,loss: &Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
                                             input: &Images<U, C, H, W>)
