@@ -124,7 +124,21 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
 
     fn backward_convolution(&self, loss: &Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, kernel: &Arr4<U,K,C,H,W>)
         -> Result<Images<U, C, H, W>, TrainingError> {
-        todo!()
+        Ok(kernel.par_iter().map(|k| {
+            (0..H).into_par_iter().map(|sy| {
+                (0..W).into_par_iter().map(|sx| {
+                    loss.par_iter().zip(k.par_iter()).map(|(l, k)| {
+                        let l = l[((sy + PAD) / S, (sx + PAD) / S)];
+
+                        k.iter().skip((sy + PAD) % S).step_by(S).map(|k| {
+                            k.iter().skip((sx + PAD) % S).step_by(S).map(|&w| l * w).fold(U::default(), |acc, l| {
+                                acc + l
+                            })
+                        }).fold(U::default(), |acc, l| acc + l)
+                    }).reduce(|| U::default(), | acc, l | acc + l)
+                }).collect::<Vec<U>>().try_into()
+            }).collect::<Result<Vec<Arr<U,W>>,SizeMismatchError>>()?.try_into()
+        }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()?.try_into()?)
     }
     fn backward_weight_gradient_convolution(&self,loss: &Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
                                             input: &Images<U, C, H, W>)

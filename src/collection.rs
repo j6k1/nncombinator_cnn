@@ -671,6 +671,15 @@ impl<'data,T, const H:usize, const W:usize> IntoParallelRefIterator<'data> for I
         ImageParIter { arr: &self.arr }
     }
 }
+impl<'data,T, const H:usize, const W:usize> IntoParallelRefIterator<'data> for ImageView<'data,T,H,W>
+    where T: Default + Clone + Send + Sync + 'static {
+    type Iter = ImageParIter<'data,T,H,W>;
+    type Item = ArrView<'data,T,W>;
+
+    fn par_iter(&'data self) -> Self::Iter {
+        ImageParIter { arr: &self.arr }
+    }
+}
 /// Implement a fixed-length image array whose size is not specified by a type parameter.
 #[derive(Debug,Eq,PartialEq,Clone)]
 pub struct VecImages<T,const C:usize,const H:usize,const W:usize> where T: Default + Clone + Send {
