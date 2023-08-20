@@ -51,8 +51,8 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
         -> Result<Arr4<U,K,C,FH,FW>, TrainingError>;
     /// Forward propagation calculation in batch
     /// # Arguments
-    /// * `loss` - loss
     /// * `input` - Input values from upper layers
+    /// * `kernel` - filter weights
     ///
     /// # Errors
     ///
@@ -62,7 +62,7 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
         -> Result<VecImages<U,K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError>;
     /// Error back propagation calculation in batch
     /// # Arguments
-    /// * `input` - Input values from upper layers
+    /// * `loss` - loss
     /// * `kernel` - filter weights
     ///
     /// # Errors
