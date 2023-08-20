@@ -1,10 +1,10 @@
-use const_guards::guard;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
 use nncombinator::arr::{Arr, Arr2, Arr3, Arr4};
 use nncombinator::device::DeviceCpu;
 use nncombinator::error::{EvaluateError, TrainingError};
 use nncombinator::error::SizeMismatchError;
 use nncombinator::ope::UnitValue;
+use crate::{Assert, assert_convolution, IsTrue};
 
 use crate::collection::{Image, Images};
 use crate::collection::VecImages;
@@ -22,7 +22,7 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
     ///
     /// This function may return the following errors
     /// * [`EvaluateError`]
-    fn forward_convolution<const CI:usize>(&self, input:&Images<U,C,H,W>, kernel:&F)
+    fn forward_convolution(&self, input:&Images<U,C,H,W>, kernel:&F)
         -> Result<Images<U,K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError>;
     /// Error back propagation calculation
     /// # Arguments
@@ -58,7 +58,7 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
     ///
     /// This function may return the following errors
     ///* [`EvaluateError`]
-    fn batch_forward_convolution<const CI:usize>(&self, input:&VecImages<U,C,H,W>, kernel:&F)
+    fn batch_forward_convolution(&self, input:&VecImages<U,C,H,W>, kernel:&F)
         -> Result<VecImages<U,K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError>;
     /// Error back propagation calculation in batch
     /// # Arguments
@@ -86,11 +86,11 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
                                 input: &VecImages<U,C,H,W>)
         -> Result<Arr4<U,K,C,H,W>, TrainingError>;
 }
-#[guard({ H + 2 * PAD >= FH && (H + 2 * PAD - FH) % S == 0 && W + 2 * PAD >= FW && (W + 2 * PAD - FW) % S == 0 })]
 impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> DeviceConvolution<U,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S> for DeviceCpu<U>
-    where U: UnitValue<U> {
-    fn forward_convolution<const CI: usize>(&self, input: &Images<U, C, H, W>, kernel: &Arr4<U,K,C,H,W>)
+    where U: UnitValue<U>,
+          Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
+    fn forward_convolution(&self, input: &Images<U, C, H, W>, kernel: &Arr4<U,K,C,H,W>)
         -> Result<Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
         Ok(kernel.par_iter().map(|k| {
             k.par_iter().zip(input.par_iter()).map(|(k,i)| {
@@ -181,7 +181,7 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
             }).collect::<Result<Vec<Arr2<U,FH,FW>>,SizeMismatchError>>()?.try_into()
         }).collect::<Result<Vec<Arr3<U,C,FH,FW>>,SizeMismatchError>>()?.try_into()?)
     }
-    fn batch_forward_convolution<const CI: usize>(&self, input: &VecImages<U, C, H, W>, kernel: &Arr4<U,K,C,H,W>)
+    fn batch_forward_convolution(&self, input: &VecImages<U, C, H, W>, kernel: &Arr4<U,K,C,H,W>)
         -> Result<VecImages<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
         Ok(input.par_iter().map(|i| {
             kernel.par_iter().map(|k| {
