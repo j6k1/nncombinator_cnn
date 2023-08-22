@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use nncombinator::arr::{Arr, ArrView, ArrViewMut, VecArr};
+use nncombinator::arr::{Arr, ArrView, ArrViewMut, MakeView, MakeViewMut, SliceSize};
 use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::{AsRawMutSlice, AsRawSlice};
 use rayon::iter::plumbing;
@@ -96,6 +96,30 @@ impl<T,const C:usize,const H:usize,const W:usize> From<Arr<T,{ C * H * W }>> for
     fn from(s: Arr<T,{ C * H * W }>) -> Self {
         Images {
             arr: s.into()
+        }
+    }
+}
+impl<T,const C:usize,const H:usize,const W:usize> SliceSize for Images<T,C,H,W>
+    where T: Default + Clone + Send + Sync {
+    const SIZE: usize = C * H * W;
+}
+impl<'a,T,const C:usize,const H:usize,const W:usize> MakeView<'a,T> for Images<T,C,H,W>
+    where T: Default + Clone + Send + Sync + 'a {
+    type ViewType = ImagesView<'a,T,C,H,W>;
+
+    fn make_view(arr: &'a [T]) -> Self::ViewType {
+        ImagesView {
+            arr:arr
+        }
+    }
+}
+impl<'a,T,const C:usize,const H:usize,const W:usize> MakeViewMut<'a,T> for Images<T,C,H,W>
+    where T: Default + Clone + Send + Sync + 'a {
+    type ViewType = ImagesView<'a,T,C,H,W>;
+
+    fn make_view_mut(arr: &'a mut [T]) -> Self::ViewType {
+        ImagesView {
+            arr:arr
         }
     }
 }
@@ -677,300 +701,5 @@ impl<'data,T, const H:usize, const W:usize> IntoParallelRefIterator<'data> for I
 
     fn par_iter(&'data self) -> Self::Iter {
         ImageParIter { arr: &self.arr }
-    }
-}
-/// Implement a fixed-length image array whose size is not specified by a type parameter.
-#[derive(Debug,Eq,PartialEq,Clone)]
-pub struct VecImages<T,const C:usize,const H:usize,const W:usize> where T: Default + Clone + Send {
-    arr:Box<[T]>,
-    len:usize,
-}
-impl<T,const C:usize,const H:usize,const W:usize> VecImages<T,C,H,W> where T: Default + Clone + Copy + Send {
-    /// get the number of element
-    pub fn len(&self) -> usize {
-        self.len
-    }
-}
-impl<T,const C:usize,const H:usize,const W:usize> VecImages<T,C,H,W> where T: Default + Clone + Copy + Send {
-    /// Create a VecImages instance of the specified size
-    /// # Arguments
-    /// * `size`- Size to be secured
-    pub fn with_size(size:usize) -> VecImages<T,C,H,W> {
-        let mut arr = Vec::with_capacity(C * H * W * size);
-
-        arr.resize_with(C * H * W * size,Default::default);
-
-        VecImages {
-            arr:arr.into_boxed_slice(),
-            len:size,
-        }
-    }
-
-    /// Obtaining a immutable iterator
-    pub fn iter(&self) -> VecImagesIter<T,C,H,W> {
-        VecImagesIter { arr: &*self.arr }
-    }
-
-    /// Obtaining a mutable iterator
-    pub fn iter_mut(&mut self) -> VecImagesIterMut<T,C,H,W> {
-        VecImagesIterMut { arr: &mut *self.arr }
-    }
-}
-impl<T,const C:usize,const H:usize,const W:usize> From<Vec<Images<T,C,H,W>>> for VecImages<T,C,H,W>
-    where T: Default + Clone + Copy + Send {
-
-    fn from(items: Vec<Images<T,C,H,W>>) -> Self {
-        let len = items.len();
-
-        let mut buffer = Vec::with_capacity(len * C * H * W);
-
-        for item in items.into_iter() {
-            buffer.extend_from_slice(&item.arr);
-        }
-
-        VecImages {
-            arr:buffer.into_boxed_slice(),
-            len:len,
-        }
-    }
-}
-impl<'data,T,const C:usize,const H:usize,const W:usize> From<Vec<ImagesView<'data,T,C,H,W>>>
-    for VecImages<T,C,H,W> where T: Default + Clone + Copy + Send {
-    fn from(items: Vec<ImagesView<'data,T,C,H,W>>) -> Self {
-        let len = items.len();
-
-        let mut buffer = Vec::with_capacity(len * C * H * W);
-
-        for item in items.into_iter() {
-            buffer.extend_from_slice(&item.arr);
-        }
-
-        VecImages {
-            arr:buffer.into_boxed_slice(),
-            len:len,
-        }
-    }
-}
-impl<T,const C:usize,const H:usize,const W:usize> From<VecImages<T,C,H,W>> for VecArr<T,Arr<T,{ C * H * W }>>
-    where T: Default + Clone + Copy + Send {
-
-    fn from(images: VecImages<T,C,H,W>) -> Self {
-        images.arr.try_into().expect("An error occurred in the conversion from Images to VecArr. The sizes do not match.")
-    }
-}
-impl<T,const C:usize,const H:usize,const W:usize> From<VecArr<T,Arr<T,{ C * H * W }>>> for VecImages<T,C,H,W>
-    where T: Default + Clone + Copy + Send {
-
-    fn from(s: VecArr<T,Arr<T,{ C * H * W }>>) -> Self {
-        let len = s.len();
-
-        VecImages {
-            arr: s.into(),
-            len: len
-        }
-    }
-}
-/// VecImages's Immutable Iterator
-#[derive(Debug,Eq,PartialEq)]
-pub struct VecImagesIter<'a,T,const C:usize,const H:usize,const W:usize> where T: Default + Clone + Send {
-    arr:&'a [T],
-}
-impl<'a,T,const C:usize,const H:usize,const W:usize> VecImagesIter<'a,T,C,H,W> where T: Default + Clone + Send {
-    /// Number of elements encompassed by the iterator element
-    const fn element_size(&self) -> usize {
-        C * H * W
-    }
-}
-impl<'a,T,const C:usize,const H:usize,const W:usize> Iterator for VecImagesIter<'a,T,C,H,W> where T: Default + Clone + Send {
-    type Item = ImagesView<'a,T,C,H,W>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let slice = std::mem::replace(&mut self.arr, &mut []);
-        if slice.is_empty() {
-            None
-        } else {
-            let (l,r) = slice.split_at(self.element_size());
-
-            self.arr = r;
-
-            Some(ImagesView{ arr: l })
-        }
-    }
-}
-
-/// VecImages's mutable Iterator
-#[derive(Debug,Eq,PartialEq)]
-pub struct VecImagesIterMut<'a,T,const C:usize,const H:usize,const W:usize> where T: Default + Clone + Send {
-    arr:&'a mut [T],
-}
-impl<'a,T,const C:usize,const H:usize,const W:usize> VecImagesIterMut<'a,T,C,H,W> where T: Default + Clone + Send {
-    /// Number of elements encompassed by the iterator element
-    const fn element_size(&self) -> usize {
-        C * H * W
-    }
-}
-impl<'a,T,const C:usize,const H:usize,const W:usize> Iterator for VecImagesIterMut<'a,T,C,H,W> where T: Default + Clone + Send {
-    type Item = ImagesViewMut<'a,T,C,H,W>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let slice = std::mem::replace(&mut self.arr, &mut []);
-        if slice.is_empty() {
-            None
-        } else {
-            let (l,r) = slice.split_at_mut(self.element_size());
-
-            self.arr = r;
-
-            Some(ImagesViewMut{ arr: l })
-        }
-    }
-}
-impl<'a,T,const C:usize,const H:usize,const W:usize> AsRawSlice<T> for VecImages<T,C,H,W> where T: Default + Clone + Send {
-    fn as_raw_slice(&self) -> &[T] {
-        &self.arr
-    }
-}
-impl<'a,T,const C:usize,const H:usize,const W:usize> AsRawMutSlice<'a,T> for VecImages<T,C,H,W> where T: Default + Clone + Send {
-    fn as_raw_mut_slice(&'a mut self) -> &'a mut [T] {
-        &mut self.arr
-    }
-}
-/// ParallelIterator implementation for VecImages
-#[derive(Debug)]
-pub struct VecImagesParIter<'data,T,const C:usize,const H:usize,const W:usize> where T: Default + Clone + Send {
-    arr:&'data [T],
-    len:usize,
-}
-pub struct VecImagesIterProducer<'data,T,const C:usize,const H:usize,const W:usize> where T: Default + Clone + Send {
-    arr:&'data [T],
-    len:usize,
-}
-/// Implementation of plumbing::Producer for VecImages
-impl<'data,T,const C:usize,const H:usize,const W:usize> VecImagesIterProducer<'data,T,C,H,W>
-    where T: Default + Clone + Send {
-    /// Number of elements encompassed by the iterator element
-    fn element_size(&self) -> usize {
-        C * H * W
-    }
-}
-impl<'data,T,const C:usize,const H:usize,const W:usize> Iterator for VecImagesIterProducer<'data,T,C,H,W>
-    where T: Default + Clone + Send {
-    type Item = ImagesView<'data,T,C,H,W>;
-
-    fn next(&mut self) -> Option<ImagesView<'data,T,C,H,W>> {
-        let slice = std::mem::replace(&mut self.arr, &mut []);
-
-        if slice.is_empty() {
-            None
-        } else {
-            let (l,r) = slice.split_at(self.element_size());
-
-            self.arr = r;
-
-            Some(ImagesView{ arr: l })
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        ({self.len}, Some(self.len))
-    }
-}
-impl<'data,T,const C:usize,const H:usize,const W:usize> std::iter::ExactSizeIterator
-    for VecImagesIterProducer<'data,T,C,H,W> where T: Default + Clone + Send {
-    fn len(&self) -> usize {
-        self.len
-    }
-}
-impl<'data,T,const C:usize,const H:usize,const W:usize> std::iter::DoubleEndedIterator
-    for VecImagesIterProducer<'data,T,C,H,W> where T: Default + Clone + Send {
-    fn next_back(&mut self) -> Option<ImagesView<'data,T,C,H,W>> {
-        let slice = std::mem::replace(&mut self.arr, &mut []);
-
-        if slice.is_empty() {
-            None
-        } else {
-            let (l,r) = slice.split_at(self.arr.len() - self.element_size());
-
-            self.arr = l;
-
-            Some(ImagesView{ arr: r })
-        }
-    }
-}
-impl<'data, T: Send + Sync + 'static,const C:usize,const H:usize,const W:usize> plumbing::Producer
-    for VecImagesIterProducer<'data,T,C,H,W> where T: Default + Clone + Send {
-    type Item = ImagesView<'data,T,C,H,W>;
-    type IntoIter = Self;
-
-    fn into_iter(self) -> Self { self }
-
-    fn split_at(self, mid: usize) -> (Self, Self) {
-        let (l,r) = self.arr.split_at(mid * C * H * W);
-
-        (VecImagesIterProducer {
-            arr: l,
-            len: self.len
-        }, VecImagesIterProducer {
-            arr: r,
-            len: self.len
-        })
-    }
-}
-impl<'data, T: Send + Sync + 'static,const C:usize,const H:usize,const W:usize> ParallelIterator
-    for VecImagesParIter<'data,T,C,H,W> where T: Default + Clone + Send {
-    type Item = ImagesView<'data,T,C,H,W>;
-
-    fn opt_len(&self) -> Option<usize> { Some(IndexedParallelIterator::len(self)) }
-
-    fn drive_unindexed<CS>(self, consumer: CS) -> CS::Result
-        where
-            CS: plumbing::UnindexedConsumer<Self::Item>,
-    {
-        self.drive(consumer)
-    }
-}
-impl<'data, T: Send + Sync + 'static, const C:usize, const H:usize, const W:usize> IndexedParallelIterator
-    for VecImagesParIter<'data,T,C,H,W> where T: Default + Clone + Send {
-    fn len(&self) -> usize { self.len }
-
-    fn drive<CS>(self, consumer: CS) -> CS::Result
-        where
-            CS: plumbing::Consumer<Self::Item>,
-    {
-        plumbing::bridge(self, consumer)
-    }
-
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-        where
-            CB: plumbing::ProducerCallback<Self::Item>,
-    {
-        callback.callback(VecImagesIterProducer {
-            arr: &self.arr,
-            len: self.len
-        })
-    }
-}
-impl<'data,T, const C:usize, const H:usize, const W:usize> IntoParallelRefIterator<'data> for VecImages<T,C,H,W>
-    where T: Default + Clone + Copy + Send + Sync + 'static {
-    type Iter = VecImagesParIter<'data,T,C,H,W>;
-    type Item = ImagesView<'data,T,C,H,W>;
-
-    fn par_iter(&'data self) -> Self::Iter {
-        VecImagesParIter {
-            arr: &self.arr,
-            len: self.len
-        }
-    }
-}
-impl<'data,T, const C:usize, const H:usize, const W:usize> IntoParallelRefIterator<'data> for &'data VecImages<T,C,H,W>
-    where T: Default + Clone + Copy + Send + Sync + 'static {
-    type Iter = VecImagesParIter<'data,T,C,H,W>;
-    type Item = ImagesView<'data,T,C,H,W>;
-
-    fn par_iter(&'data self) -> Self::Iter {
-        VecImagesParIter {
-            arr: &self.arr,
-            len: self.len
-        }
     }
 }

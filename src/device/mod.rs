@@ -1,5 +1,5 @@
 use rayon::prelude::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
-use nncombinator::arr::{Arr, Arr2, Arr3, Arr4};
+use nncombinator::arr::{Arr, Arr2, Arr3, Arr4, VecArr};
 use nncombinator::device::DeviceCpu;
 use nncombinator::error::{EvaluateError, TrainingError};
 use nncombinator::error::SizeMismatchError;
@@ -7,7 +7,6 @@ use nncombinator::ope::UnitValue;
 use crate::{Assert, assert_convolution, IsTrue};
 
 use crate::collection::{Image, Images};
-use crate::collection::VecImages;
 
 /// Trait that defines the implementation of various calculation processes in the convolution layer
 pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const W:usize,
@@ -58,8 +57,8 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
     ///
     /// This function may return the following errors
     ///* [`EvaluateError`]
-    fn batch_forward_convolution(&self, input:&VecImages<U,C,H,W>, kernel:&F)
-        -> Result<VecImages<U,K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError>;
+    fn batch_forward_convolution(&self, input:&VecArr<U,Images<U,C,H,W>>, kernel:&F)
+        -> Result<VecArr<U,Images<U,K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>, EvaluateError>;
     /// Error back propagation calculation in batch
     /// # Arguments
     /// * `loss` - loss
@@ -69,9 +68,9 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
     ///
     /// This function may return the following errors
     /// * [`TrainingError`]
-    fn batch_backward_convolution(&self,loss:&VecImages<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
+    fn batch_backward_convolution(&self,loss:&VecArr<U,Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>,
                                   kernel:&F)
-       -> Result<VecImages<U,C,H,W>, TrainingError>;
+       -> Result<VecArr<U,Images<U,C,H,W>>, TrainingError>;
     /// Calculate the gradient of the weights in batch
     /// # Arguments
     /// * `loss` - loss
@@ -82,8 +81,8 @@ pub trait DeviceConvolution<U,F,const C:usize,const K:usize,const H:usize,const 
     /// This function may return the following errors
     /// * [`TrainingError`]
     fn batch_backward_weight_gradient_convolution(&self,
-                                loss: &VecImages<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
-                                input: &VecImages<U,C,H,W>)
+                                loss: &VecArr<U,Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>,
+                                input: &VecArr<U,Images<U,C,H,W>>)
         -> Result<Arr4<U,K,C,H,W>, TrainingError>;
 }
 impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
@@ -181,8 +180,8 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
             }).collect::<Result<Vec<Arr2<U,FH,FW>>,SizeMismatchError>>()?.try_into()
         }).collect::<Result<Vec<Arr3<U,C,FH,FW>>,SizeMismatchError>>()?.try_into()?)
     }
-    fn batch_forward_convolution(&self, input: &VecImages<U, C, H, W>, kernel: &Arr4<U,K,C,H,W>)
-        -> Result<VecImages<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
+    fn batch_forward_convolution(&self, input: &VecArr<U,Images<U, C, H, W>>, kernel: &Arr4<U,K,C,H,W>)
+        -> Result<VecArr<U, Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>, EvaluateError> {
         Ok(input.par_iter().map(|i| {
             kernel.par_iter().map(|k| {
                 k.par_iter().zip(i.par_iter()).map(|(k,i)| {
@@ -215,9 +214,9 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
         }).collect::<Result<Vec<Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>,SizeMismatchError>>()?.into())
     }
     fn batch_backward_convolution(&self,
-                                  loss: &VecImages<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
+                                  loss: &VecArr<U, Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>,
                                   kernel: &Arr4<U,K,C,H,W>)
-        -> Result<VecImages<U, C, H, W>, TrainingError> {
+        -> Result<VecArr<U, Images<U, C, H, W>>, TrainingError> {
         Ok(loss.par_iter().map(|l| {
             l.par_iter().zip(kernel.par_iter()).map(|(l,k)| {
                 k.par_iter().map(move |k| {
@@ -249,8 +248,8 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
         }).collect::<Result<Vec<Images<U,C,H,W>>,SizeMismatchError>>()?.into())
     }
     fn batch_backward_weight_gradient_convolution(&self,
-                                                  loss: &VecImages<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
-                                                  input: &VecImages<U, C, H, W>)
+                                                  loss: &VecArr<U, Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>,
+                                                  input: &VecArr<U, Images<U, C, H, W>>)
         -> Result<Arr4<U, K, C, H, W>, TrainingError> {
         Ok(loss.par_iter().zip(input.par_iter()).map(|(l,i)| {
             l.par_iter().map(|l| {
