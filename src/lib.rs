@@ -15,7 +15,7 @@ extern crate nncombinator;
 
 pub mod collection;
 pub mod device;
-//pub mod layer;
+pub mod layer;
 
 pub enum Assert<const CHECK: bool> {}
 
