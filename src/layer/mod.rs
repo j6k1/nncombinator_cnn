@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use nncombinator::arr::{Arr4, VecArr};
+use nncombinator::arr::{Arr4, SerializedVec};
 use nncombinator::{Cons, Stack};
 use nncombinator::device::{Device, DeviceCpu};
 use nncombinator::error::{ConfigReadError, EvaluateError, LayerInstantiationError, PersistenceError, TrainingError};
@@ -20,7 +20,7 @@ pub trait ConvolutionLayerInstantiation<U,P,D,I,F,const C:usize,const K:usize,co
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U>,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     /// Create and return an instance with the specified scale, bias, and momentum.
@@ -39,7 +39,7 @@ pub struct ConvolutionLayer<U,P,D,I,F,const C:usize,const K:usize,const H:usize,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           F: Send + Sync + 'static,
           I: Debug + Send + Sync,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     parent:P,
     device:D,
@@ -53,7 +53,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U>,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn new<UI: FnMut() -> U>(parent:P,device:&DeviceCpu<U>,ui:UI)
         -> Result<ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError> {
@@ -85,7 +85,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + Persistence<U,TextFilePersistence<U>,Specialized>,
           U: Default + Clone + Copy + Send + UnitValue<U>+ FromStr,
           I: Debug + Send + Sync,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           ConfigReadError: From<<U as FromStr>::Err> {
     fn load(&mut self, persistence: &mut TextFilePersistence<U>) -> Result<(),ConfigReadError> {
@@ -132,7 +132,7 @@ impl<T,U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + Persistence<U,T,Linear>,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn load(&mut self, persistence: &mut T) -> Result<(),ConfigReadError> {
         self.parent.load(persistence)?;
@@ -175,7 +175,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           D: Device<U> + DeviceConvolution<U,F,C,K,H,W,FH,FW,PAD,S> + 'static,
           I: Debug + Send + Sync,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn forward(&self,input:&Images<U,C,H,W>)
@@ -190,7 +190,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           D: Device<U> + DeviceConvolution<U,F,C,K,H,W,FH,FW,PAD,S> + 'static,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
@@ -208,7 +208,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           D: Device<U> + DeviceConvolution<U,F,C,K,H,W,FH,FW,PAD,S> + 'static,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
@@ -232,7 +232,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           D: Device<U> + DeviceConvolution<U,F,C,K,H,W,FH,FW,PAD,S> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn backward(&mut self, loss: &Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>)
@@ -247,7 +247,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]: {
@@ -289,7 +289,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           D: Device<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Self: PreTrain<U>,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
@@ -308,7 +308,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]: {
@@ -318,29 +318,29 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
     for ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
-             BatchForwardBase<BatchInput=VecArr<U,I>,BatchOutput=VecArr<U,Images<U,C,H,W>>> + 'static,
+             BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + 'static,
           D: Device<U>,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]:,
           Self: ForwardAll {
-    type BatchInput = VecArr<U,I>;
-    type BatchOutput = VecArr<U,Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>;
+    type BatchInput = SerializedVec<U,I>;
+    type BatchOutput = SerializedVec<U,Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>;
 }
 impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> BatchForward
     for ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
-             BatchForwardBase<BatchInput=VecArr<U,I>,BatchOutput=VecArr<U,Images<U,C,H,W>>> + BatchForward + 'static,
+             BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward + 'static,
           D: Device<U> + DeviceConvolution<U,F,C,K,H,W,FH,FW,PAD,S> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
@@ -356,12 +356,12 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
     for ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
-             BatchForwardBase<BatchInput=VecArr<U,I>,BatchOutput=VecArr<U,Images<U,C,H,W>>> + BatchForward +
+             BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward +
              BatchPreTrainBase<U> + 'static,
           D: Device<U>,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
@@ -374,12 +374,12 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
     for ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
-             BatchForwardBase<BatchInput=VecArr<U,I>,BatchOutput=VecArr<U,Images<U,C,H,W>>> + BatchForward +
+             BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward +
              BatchPreTrainBase<U> + BatchPreTrain<U> + 'static,
           D: Device<U> + DeviceConvolution<U,F,C,K,H,W,FH,FW,PAD,S> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           F: Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
@@ -398,15 +398,15 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
-             BatchForwardBase<BatchInput=VecArr<U,I>,BatchOutput=VecArr<U,Images<U,C,H,W>>> + BatchForward +
-             BatchPreTrainBase<U> + BatchBackward<U> + BatchLoss<U,BatchLossInput=VecArr<U,Images<U,C,H,W>>> + 'static,
+             BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward +
+             BatchPreTrainBase<U> + BatchBackward<U> + BatchLoss<U,BatchLossInput=SerializedVec<U,Images<U,C,H,W>>> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]: {
-    type BatchLossInput = VecArr<U,Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>;
+    type BatchLossInput = SerializedVec<U,Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>;
 
     fn batch_backward<OP: Optimizer<U>, L: LossFunction<U>>(&mut self, input: Self::BatchLossInput, stack: Self::BatchOutStack, optimizer: &mut OP, lossf: &L) -> Result<(), TrainingError> {
         let (s, _) = stack.pop();
@@ -441,11 +441,11 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
-             BatchForwardBase<BatchInput=VecArr<U,I>,BatchOutput=VecArr<U,Images<U,C,H,W>>> + BatchForward +
-             BatchPreTrainBase<U> + BatchBackward<U> + BatchLoss<U,BatchLossInput=VecArr<U,Images<U,C,H,W>>> + 'static,
+             BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward +
+             BatchPreTrainBase<U> + BatchBackward<U> + BatchLoss<U,BatchLossInput=SerializedVec<U,Images<U,C,H,W>>> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
-          VecArr<U,I>: Debug + Send + Sync + 'static,
+          SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]: {

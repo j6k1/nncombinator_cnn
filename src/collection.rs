@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use nncombinator::arr::{Arr, ArrView, ArrViewMut, MakeView, MakeViewMut, SliceSize};
+use nncombinator::arr::{Arr, ArrView, ArrViewMut, AsView, AsViewMut, MakeView, MakeViewMut, SliceSize};
 use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::{AsRawMutSlice, AsRawSlice};
 use rayon::iter::plumbing;
@@ -103,23 +103,49 @@ impl<T,const C:usize,const H:usize,const W:usize> SliceSize for Images<T,C,H,W>
     where T: Default + Clone + Send + Sync {
     const SIZE: usize = C * H * W;
 }
-impl<'a,T,const C:usize,const H:usize,const W:usize> MakeView<'a,T> for Images<T,C,H,W>
-    where T: Default + Clone + Send + Sync + 'a {
+impl<'a,T,const C:usize,const H:usize,const W:usize> AsView<'a> for Images<T,C,H,W>
+    where T: Default + Clone + Send + Sync + 'a{
     type ViewType = ImagesView<'a,T,C,H,W>;
 
-    fn make_view(arr: &'a [T]) -> Self::ViewType {
+    fn as_view(&'a self) -> Self::ViewType {
         ImagesView {
-            arr:arr
+            arr: &*self.arr
+        }
+    }
+}
+impl<'a,T,const C:usize,const H:usize,const W:usize> MakeView<'a,T> for Images<T,C,H,W>
+    where T: Default + Clone + Send + Sync + 'a {
+
+    fn make_view(arr: &'a [T]) -> Result<Self::ViewType,SizeMismatchError> {
+        if arr.len() != Images::<T,C,H,W>::slice_size() {
+            Err(SizeMismatchError(Images::<T,C,H,W>::slice_size(),arr.len()))
+        } else {
+            Ok(ImagesView {
+                arr: arr
+            })
+        }
+    }
+}
+impl<'a,T,const C:usize,const H:usize,const W:usize> AsViewMut<'a> for Images<T,C,H,W>
+    where T: Default + Clone + Send + Sync + 'a {
+    type ViewType = ImagesViewMut<'a, T, C, H, W>;
+
+    fn as_view(&'a mut self) -> Self::ViewType {
+        ImagesViewMut {
+            arr:&mut *self.arr
         }
     }
 }
 impl<'a,T,const C:usize,const H:usize,const W:usize> MakeViewMut<'a,T> for Images<T,C,H,W>
     where T: Default + Clone + Send + Sync + 'a {
-    type ViewType = ImagesView<'a,T,C,H,W>;
 
-    fn make_view_mut(arr: &'a mut [T]) -> Self::ViewType {
-        ImagesView {
-            arr:arr
+    fn make_view_mut(arr: &'a mut [T]) -> Result<Self::ViewType,SizeMismatchError> {
+        if arr.len() != Images::<T,C,H,W>::slice_size() {
+            Err(SizeMismatchError(Images::<T,C,H,W>::slice_size(),arr.len()))
+        } else {
+            Ok(ImagesViewMut {
+                arr: arr
+            })
         }
     }
 }
@@ -217,6 +243,15 @@ impl<'a,T,const C:usize,const H:usize,const W:usize> AsRawSlice<T> for ImagesVie
     where T: Default + Clone + Send {
     fn as_raw_slice(&self) -> &[T] {
         &self.arr
+    }
+}
+impl<'a,T,const C:usize,const H:usize,const W:usize> From<&'a Arr<T,{ C * H * W }>> for ImagesView<'a,T,C,H,W>
+    where T: Default + Clone + Send {
+
+    fn from(s: &'a Arr<T,{ C * H * W }>) -> Self {
+        ImagesView {
+            arr:s.as_raw_slice()
+        }
     }
 }
 /// Implementation of an mutable view of a Images
