@@ -114,9 +114,7 @@ impl<U,const C:usize,const H:usize,const W:usize,
 
             for ((y,r),d) in indexes.iter().enumerate().zip(l.iter()) {
                 for ((x,(dy,dx)),&d) in r.iter().enumerate().zip(d.iter()) {
-                    if y * S + dy >= PAD && x * S + dx >= PAD {
-                        result[(y * S + dy - PAD, x * S + dx - PAD)] += d;
-                    }
+                    result[(y * S + dy - PAD, x * S + dx - PAD)] += d;
                 }
             }
 
@@ -180,9 +178,7 @@ impl<U,const C:usize,const H:usize,const W:usize,
 
                 for ((y,r),d) in indexes.iter().enumerate().zip(l.iter()) {
                     for ((x,(dy,dx)),&d) in r.iter().enumerate().zip(d.iter()) {
-                        if y * S + dy >= PAD && x * S + dx >= PAD {
-                            result[(y * S + dy - PAD, x * S + dx - PAD)] += d;
-                        }
+                        result[(y * S + dy - PAD, x * S + dx - PAD)] += d;
                     }
                 }
 
