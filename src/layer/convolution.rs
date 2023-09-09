@@ -11,7 +11,7 @@ use nncombinator::ope::UnitValue;
 use nncombinator::optimizer::Optimizer;
 use nncombinator::persistence::*;
 use crate::collection::{Images};
-use crate::device::DeviceConvolution;
+use crate::device::convolution::DeviceConvolution;
 use crate::{Assert, assert_convolution, IsTrue};
 
 pub trait ConvolutionLayerInstantiation<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,

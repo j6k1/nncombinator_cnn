@@ -341,6 +341,16 @@ impl<T,const H:usize, const W:usize> Index<(usize,usize)> for Image<T,H,W> where
         &self.arr[y * W + x]
     }
 }
+impl<T,const H:usize, const W:usize> IndexMut<(usize,usize)> for Image<T,H,W> where T: Default + Clone + Send {
+    fn index_mut(&mut self, (y,x): (usize, usize)) -> &mut Self::Output {
+        if y >= H {
+            panic!("index out of bounds: the len is {} but the index is {}",H,y);
+        } else if x >= W {
+            panic!("index out of bounds: the len is {} but the index is {}",W,x);
+        }
+        &mut self.arr[y * W + x]
+    }
+}
 impl<T,const H:usize,const W:usize> TryFrom<Vec<Arr<T,W>>> for Image<T,H,W> where T: Default + Clone + Send {
     type Error = SizeMismatchError;
 
