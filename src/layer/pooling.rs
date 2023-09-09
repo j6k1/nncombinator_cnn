@@ -27,7 +27,7 @@ pub trait MaxPooling2DLayerInstantiation<U,P,D,I,const C:usize,const H:usize,con
     /// * `parent` - upper layer
     /// * `device` - Device object used for neural network computation
     ///
-    fn new(parent:P,device:&D) -> Result<MaxPooling2DLayer<U,P,D,I,C,H,W,FH,FW,PAD,S>,LayerInstantiationError>;
+    fn instantiation(parent:P,device:&D) -> Result<MaxPooling2DLayer<U,P,D,I,C,H,W,FH,FW,PAD,S>,LayerInstantiationError>;
 }
 ///  Convolution Layer Implementation
 pub struct MaxPooling2DLayer<U,P,D,I,const C:usize,const H:usize,const W:usize,
@@ -50,7 +50,7 @@ impl<U,P,I,const C:usize,const H:usize,const W:usize,
           I: Debug + Send + Sync,
           SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
-    fn new(parent:P,device:&DeviceCpu<U>)
+    fn instantiation(parent:P,device:&DeviceCpu<U>)
         -> Result<MaxPooling2DLayer<U,P,DeviceCpu<U>,I,C,H,W,FH,FW,PAD,S>,LayerInstantiationError> {
 
         Ok(MaxPooling2DLayer {
@@ -335,4 +335,22 @@ impl<U,P,I,const C:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]: {
+}
+pub struct MaxPooling2DBuilder<const C:usize,const H:usize,const W:usize,
+    const FH: usize,const FW: usize,const PAD:usize,const S:usize> {
+
+}
+impl<const C:usize,const H:usize,const W:usize,
+    const FH: usize,const FW: usize,const PAD:usize,const S:usize> MaxPooling2DBuilder<C,H,W,FH,FW,PAD,S> {
+    pub fn build<U,P,D,I>(parent:P,device:&D)
+        -> Result<MaxPooling2DLayer<U,P,D,I,C,H,W,FH,FW,PAD,S>,LayerInstantiationError>
+        where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
+                 BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U>,
+              U: Default + Clone + Copy + Send + UnitValue<U>,
+              I: Debug + Send + Sync,
+              SerializedVec<U,I>: Debug + Send + Sync + 'static,
+              Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
+              MaxPooling2DLayer<U,P,D,I,C,H,W,FH,FW,PAD,S>: MaxPooling2DLayerInstantiation<U,P,D,I,C,H,W,FH,FW,PAD,S> {
+        MaxPooling2DLayer::instantiation(parent,device)
+    }
 }

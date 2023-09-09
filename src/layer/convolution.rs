@@ -29,7 +29,7 @@ pub trait ConvolutionLayerInstantiation<U,P,D,I,F,const C:usize,const K:usize,co
     /// * `device` - Device object used for neural network computation
     /// * `ui` - Callback to generate weight of unit
     ///
-    fn new<UI: FnMut() -> U>(parent:P,device:&D,ui:UI) -> Result<ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError>;
+    fn instantiation<UI: FnMut() -> U>(parent:P,device:&D,ui:UI) -> Result<ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError>;
 }
 ///  Convolution Layer Implementation
 pub struct ConvolutionLayer<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
@@ -55,7 +55,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
           I: Debug + Send + Sync,
           SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
-    fn new<UI: FnMut() -> U>(parent:P,device:&DeviceCpu<U>,ui:UI)
+    fn instantiation<UI: FnMut() -> U>(parent:P,device:&DeviceCpu<U>,ui:UI)
         -> Result<ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError> {
         let mut kernel = Arr4::new();
 
@@ -438,6 +438,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
 }
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> BatchLoss<U>
+
     for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
@@ -449,4 +450,23 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
           [(); (H + 2 * PAD - FH) / S + 1]:,
           [(); (W + 2 * PAD - FW) / S + 1]: {
+}
+pub struct ConvolutionLayerBuilder<const C:usize,const K:usize,const H:usize,const W:usize,
+    const FH: usize,const FW: usize,const PAD:usize,const S:usize> {
+
+}
+impl<const C:usize,const K:usize,const H:usize,const W:usize,
+    const FH: usize,const FW: usize,const PAD:usize,const S:usize> ConvolutionLayerBuilder<C,K,H,W,FH,FW,PAD,S> {
+    pub fn build<U,P,D,I,F,UI: FnMut() -> U>(parent:P,device:&D,ui:UI)
+        -> Result<ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError>
+        where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
+                 BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U>,
+                 U: Default + Clone + Copy + Send + UnitValue<U>,
+                 I: Debug + Send + Sync,
+                 SerializedVec<U,I>: Debug + Send + Sync + 'static,
+                 F: Send + Sync + 'static,
+                 Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue,
+                 ConvolutionLayer<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S>: ConvolutionLayerInstantiation<U,P,D,I,F,C,K,H,W,FH,FW,PAD,S> {
+            ConvolutionLayer::instantiation(parent,device,ui)
+    }
 }
