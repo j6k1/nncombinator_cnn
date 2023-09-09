@@ -66,10 +66,14 @@ impl<U,const C:usize,const H:usize,const W:usize,
         Ok(input.par_iter().map(|i| {
             (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                 (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                    i.iter().enumerate().skip(sy).take(FH).take_while(|(dy,_)| {
+                    i.iter().enumerate().skip(sy).skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
+                        *dy < FH
+                    }).take_while(|(dy,_)| {
                         sy + dy < H + PAD
                     }).fold(U::initial_max_value(),|acc,(_,r)| {
-                        r.iter().enumerate().skip(sx).take(FW).take_while(|(dx,_)| {
+                        r.iter().enumerate().skip(sx).skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
+                            *dx < FW
+                        }).take_while(|(dx,_)| {
                             sx + dx < W + PAD
                         }).fold(acc,|acc,(_,p)| {
                             p.max(&acc)
@@ -88,10 +92,14 @@ impl<U,const C:usize,const H:usize,const W:usize,
 
             let indexes = (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                 (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                    i.iter().enumerate().skip(sy).take(FH).take_while(|(dy,_)| {
+                    i.iter().enumerate().skip(sy).skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
+                        *dy < FH
+                    }).take_while(|(dy,_)| {
                         sy + dy < H + PAD
                     }).fold(((0,0),U::initial_max_value()),|acc,(dy,r)| {
-                        r.iter().enumerate().skip(sx).take(FW).take_while(|(dx,_)| {
+                        r.iter().enumerate().skip(sx).skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
+                            *dx < FW
+                        }).take_while(|(dx,_)| {
                             sx + dx < W + PAD
                         }).fold(acc,|((x,y),max),(dx,&p)| {
                             if acc.1.is_nan() || acc.1 < p {
@@ -146,10 +154,14 @@ impl<U,const C:usize,const H:usize,const W:usize,
 
                 let indexes = (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                     (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                        i.iter().enumerate().skip(sy).take(FH).take_while(|(dy,_)| {
+                        i.iter().enumerate().skip(sy).skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
+                            *dy < FH
+                        }).take_while(|(dy,_)| {
                             sy + dy < H + PAD
                         }).fold(((0,0),U::initial_max_value()),|acc,(dy,r)| {
-                            r.iter().enumerate().skip(sx).take(FW).take_while(|(dx,_)| {
+                            r.iter().enumerate().skip(sx).skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
+                                *dx < FW
+                            }).take_while(|(dx,_)| {
                                 sx + dx < W + PAD
                             }).fold(acc,|((x,y),max),(dx,&p)| {
                                 if acc.1.is_nan() || acc.1 < p {
