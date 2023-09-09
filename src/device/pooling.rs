@@ -66,15 +66,15 @@ impl<U,const C:usize,const H:usize,const W:usize,
         Ok(input.par_iter().map(|i| {
             (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                 (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                    i.iter().skip(sy).enumerate().skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
-                        *dy < FH
+                    i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
+                        (dy + PAD - PAD.min(sy),i)
                     }).take_while(|(dy,_)| {
-                        sy + dy < H + PAD
+                        *dy < FH && sy + *dy < H + PAD
                     }).fold(U::initial_max_value(),|acc,(_,r)| {
-                        r.iter().skip(sx).enumerate().skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
-                            *dx < FW
+                        r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
+                            (dx + PAD - PAD.min(sx),i)
                         }).take_while(|(dx,_)| {
-                            sx + dx < W + PAD
+                            *dx < FW && sx + *dx < W + PAD
                         }).fold(acc,|acc,(_,p)| {
                             p.max(&acc)
                         })
@@ -92,13 +92,13 @@ impl<U,const C:usize,const H:usize,const W:usize,
 
             let indexes = (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                 (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                    i.iter().skip(sy).enumerate().skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
-                        *dy < FH
+                    i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
+                        (dy + PAD - PAD.min(sy),i)
                     }).take_while(|(dy,_)| {
-                        sy + dy < H + PAD
+                        *dy < FH && sy + *dy < H + PAD
                     }).fold(((0,0),U::initial_max_value()),|acc,(dy,r)| {
-                        r.iter().skip(sx).enumerate().skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
-                            *dx < FW
+                        r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
+                           (dx + PAD - PAD.min(sx),i)
                         }).take_while(|(dx,_)| {
                             sx + dx < W + PAD
                         }).fold(acc,|((x,y),max),(dx,&p)| {
@@ -112,9 +112,9 @@ impl<U,const C:usize,const H:usize,const W:usize,
                 }).collect::<Vec<(usize,usize)>>()
             }).collect::<Vec<Vec<(usize,usize)>>>();
 
-            for ((y,r),d) in indexes.iter().enumerate().zip(l.iter()) {
-                for ((x,(dy,dx)),&d) in r.iter().enumerate().zip(d.iter()) {
-                    result[(y * S + dy - PAD, x * S + dx - PAD)] += d;
+            for ((sy,r),d) in indexes.iter().enumerate().zip(l.iter()) {
+                for ((sx,(dy,dx)),&d) in r.iter().enumerate().zip(d.iter()) {
+                    result[(sy * S + dy - PAD, sx * S + dx - PAD)] += d;
                 }
             }
 
@@ -128,15 +128,15 @@ impl<U,const C:usize,const H:usize,const W:usize,
             i.par_iter().map(|i| {
                 (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                     (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                        i.iter().skip(sy).enumerate().skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
-                            *dy < FH
+                        i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
+                            (dy + PAD - PAD.min(sy),i)
                         }).take_while(|(dy,_)| {
-                            sy + dy < H + PAD
+                            *dy < FH && sy + *dy < H + PAD
                         }).fold(U::initial_max_value(),|acc,(_,r)| {
-                            r.iter().skip(sx).enumerate().skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
-                                *dx < FW
+                            r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
+                                (dx + PAD - PAD.min(sx),i)
                             }).take_while(|(dx,_)| {
-                                sx + dx < W + PAD
+                                *dx < FW && sx + dx < W + PAD
                             }).fold(acc,|acc,(_,p)| {
                                 p.max(&acc)
                             })
@@ -156,13 +156,13 @@ impl<U,const C:usize,const H:usize,const W:usize,
 
                 let indexes = (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
                     (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
-                        i.iter().skip(sy).enumerate().skip_while(|(dy,_)| sy + dy < PAD).take_while(|(dy,_)| {
-                            *dy < FH
+                        i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
+                            (dy + PAD - PAD.min(sy),i)
                         }).take_while(|(dy,_)| {
-                            sy + dy < H + PAD
+                            *dy < FH && sy + *dy < H + PAD
                         }).fold(((0,0),U::initial_max_value()),|acc,(dy,r)| {
-                            r.iter().skip(sx).enumerate().skip_while(|(dx,_)| sx + dx < PAD).take_while(|(dx,_)| {
-                                *dx < FW
+                            r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
+                                (dx + PAD - PAD.min(sx),i)
                             }).take_while(|(dx,_)| {
                                 sx + dx < W + PAD
                             }).fold(acc,|((x,y),max),(dx,&p)| {
@@ -176,9 +176,9 @@ impl<U,const C:usize,const H:usize,const W:usize,
                     }).collect::<Vec<(usize,usize)>>()
                 }).collect::<Vec<Vec<(usize,usize)>>>();
 
-                for ((y,r),d) in indexes.iter().enumerate().zip(l.iter()) {
-                    for ((x,(dy,dx)),&d) in r.iter().enumerate().zip(d.iter()) {
-                        result[(y * S + dy - PAD, x * S + dx - PAD)] += d;
+                for ((sy,r),d) in indexes.iter().enumerate().zip(l.iter()) {
+                    for ((sx,(dy,dx)),&d) in r.iter().enumerate().zip(d.iter()) {
+                        result[(sy * S + dy - PAD, sx * S + dx - PAD)] += d;
                     }
                 }
 
