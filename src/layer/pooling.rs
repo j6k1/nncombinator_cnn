@@ -342,7 +342,11 @@ pub struct MaxPooling2DBuilder<const C:usize,const H:usize,const W:usize,
 }
 impl<const C:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> MaxPooling2DBuilder<C,H,W,FH,FW,PAD,S> {
-    pub fn build<U,P,D,I>(parent:P,device:&D)
+    pub fn new() -> MaxPooling2DBuilder<C,H,W,FH,FW,PAD,S> {
+        MaxPooling2DBuilder {}
+    }
+
+    pub fn build<U,P,D,I>(&self,parent:P,device:&D)
         -> Result<MaxPooling2DLayer<U,P,D,I,C,H,W,FH,FW,PAD,S>,LayerInstantiationError>
         where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
                  BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U>,

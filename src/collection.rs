@@ -90,6 +90,26 @@ impl<T,const C:usize,const H:usize,const W:usize> From<Images<T,C,H,W>> for Arr<
         images.arr.try_into().expect("An error occurred in the conversion from Images to Arr. The sizes do not match.")
     }
 }
+impl<T,const C:usize,const H:usize,const W:usize> TryFrom<Box<[T]>> for Images<T,C,H,W> where T: Default + Clone + Send {
+    type Error = SizeMismatchError;
+
+    fn try_from(items: Box<[T]>) -> Result<Self,SizeMismatchError> {
+        if items.len() != C * H * W {
+            Err(SizeMismatchError(items.len(),C * H * W))
+        } else {
+            Ok(Images {
+                arr:items
+            })
+        }
+    }
+}
+impl<'a,T,const C:usize,const H:usize,const W:usize> From<&'a Images<T,C,H,W>> for ArrView<'a,T,{ C * H * W }>
+    where T: Default + Clone + Send {
+
+    fn from(images: &'a Images<T,C,H,W>) -> Self {
+        (&*images.arr).try_into().expect("An error occurred in the conversion from Images to Arr. The sizes do not match.")
+    }
+}
 impl<T,const C:usize,const H:usize,const W:usize> From<Arr<T,{ C * H * W }>> for Images<T,C,H,W>
     where T: Default + Clone + Send {
 
@@ -104,7 +124,7 @@ impl<T,const C:usize,const H:usize,const W:usize> SliceSize for Images<T,C,H,W>
     const SIZE: usize = C * H * W;
 }
 impl<'a,T,const C:usize,const H:usize,const W:usize> AsView<'a> for Images<T,C,H,W>
-    where T: Default + Clone + Send + Sync + 'a{
+    where T: Default + Clone + Send + Sync + 'a {
     type ViewType = ImagesView<'a,T,C,H,W>;
 
     fn as_view(&'a self) -> Self::ViewType {
