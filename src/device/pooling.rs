@@ -64,17 +64,17 @@ impl<U,const C:usize,const H:usize,const W:usize,
     fn forward_maxpooling_2d(&self, input: &Images<U, C, H, W>)
         -> Result<Images<U,C, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
         Ok(input.par_iter().map(|i| {
-            (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
-                (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
+            (0..(H + PAD * 2 - FH + 1)).into_par_iter().step_by(S).map(|sy| {
+                (0..(W + PAD * 2 - FW + 1)).into_par_iter().step_by(S).map(|sx| {
                     i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
                         (dy + PAD - PAD.min(sy),i)
                     }).take_while(|(dy,_)| {
-                        *dy < FH && sy + *dy < H + PAD
+                        *dy < FH && sy + *dy < H + PAD * 2
                     }).fold(U::initial_max_value(),|acc,(_,r)| {
                         r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
                             (dx + PAD - PAD.min(sx),i)
                         }).take_while(|(dx,_)| {
-                            *dx < FW && sx + *dx < W + PAD
+                            *dx < FW && sx + *dx < W + PAD * 2
                         }).fold(acc,|acc,(_,p)| {
                             p.max(&acc)
                         })
@@ -90,17 +90,17 @@ impl<U,const C:usize,const H:usize,const W:usize,
         Ok(input.par_iter().zip(loss.par_iter()).map(|(i,l)| {
             let mut result = Image::<U,H,W>::new();
 
-            let indexes = (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
-                (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
+            let indexes = (PAD..(H + PAD * 2 - FH + 1)).into_par_iter().step_by(S).map(|sy| {
+                (PAD..(W + PAD * 2 - FW + 1)).into_par_iter().step_by(S).map(|sx| {
                     i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
                         (dy + PAD - PAD.min(sy),i)
                     }).take_while(|(dy,_)| {
-                        *dy < FH && sy + *dy < H + PAD
+                        *dy < FH && sy + *dy < H + PAD * 2
                     }).fold(((0,0),U::initial_max_value()),|acc,(dy,r)| {
                         r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
                            (dx + PAD - PAD.min(sx),i)
                         }).take_while(|(dx,_)| {
-                            sx + dx < W + PAD
+                            sx + dx < W + PAD * 2
                         }).fold(acc,|((x,y),max),(dx,&p)| {
                             if acc.1.is_nan() || acc.1 < p {
                                 ((dy,dx),p)
@@ -126,17 +126,17 @@ impl<U,const C:usize,const H:usize,const W:usize,
         -> Result<SerializedVec<U, Images<U, C, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>, EvaluateError> {
         Ok(input.par_iter().map(|i| {
             i.par_iter().map(|i| {
-                (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
-                    (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
+                (0..(H + PAD * 2 - FH + 1)).into_par_iter().step_by(S).map(|sy| {
+                    (0..(W + PAD * 2 - FW + 1)).into_par_iter().step_by(S).map(|sx| {
                         i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
                             (dy + PAD - PAD.min(sy),i)
                         }).take_while(|(dy,_)| {
-                            *dy < FH && sy + *dy < H + PAD
+                            *dy < FH && sy + *dy < H + PAD * 2
                         }).fold(U::initial_max_value(),|acc,(_,r)| {
                             r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
                                 (dx + PAD - PAD.min(sx),i)
                             }).take_while(|(dx,_)| {
-                                *dx < FW && sx + dx < W + PAD
+                                *dx < FW && sx + dx < W + PAD * 2
                             }).fold(acc,|acc,(_,p)| {
                                 p.max(&acc)
                             })
@@ -154,17 +154,17 @@ impl<U,const C:usize,const H:usize,const W:usize,
             i.par_iter().zip(l.par_iter()).map(|(i,l)| {
                 let mut result = Image::<U,H,W>::new();
 
-                let indexes = (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
-                    (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
+                let indexes = (PAD..(H + PAD * 2 - FH + 1)).into_par_iter().step_by(S).map(|sy| {
+                    (PAD..(W + PAD * 2 - FW + 1)).into_par_iter().step_by(S).map(|sx| {
                         i.iter().skip(sy - PAD.min(sy)).enumerate().map(|(dy,i)| {
                             (dy + PAD - PAD.min(sy),i)
                         }).take_while(|(dy,_)| {
-                            *dy < FH && sy + *dy < H + PAD
+                            *dy < FH && sy + *dy < H + PAD * 2
                         }).fold(((0,0),U::initial_max_value()),|acc,(dy,r)| {
                             r.iter().skip(sx - PAD.min(sx)).enumerate().map(|(dx,i)| {
                                 (dx + PAD - PAD.min(sx),i)
                             }).take_while(|(dx,_)| {
-                                sx + dx < W + PAD
+                                sx + dx < W + PAD * 2
                             }).fold(acc,|((x,y),max),(dx,&p)| {
                                 if acc.1.is_nan() || acc.1 < p {
                                     ((dy,dx),p)

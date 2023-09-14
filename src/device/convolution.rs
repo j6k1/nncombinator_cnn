@@ -93,15 +93,15 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
         -> Result<Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
         Ok(kernel.par_iter().map(|k| {
             k.par_iter().zip(input.par_iter()).map(|(k,i)| {
-                (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
-                    (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
+                (0..(H + PAD * 2 - FH + 1)).into_par_iter().step_by(S).map(|sy| {
+                    (0..(W + PAD * 2 - FW + 1)).into_par_iter().step_by(S).map(|sx| {
                         k.iter().enumerate()
                             .skip_while(|(oy,_)| sy + oy < PAD)
-                            .take_while(|(oy,_)| sy + oy < H).zip(i.iter().skip(sy - PAD))
+                            .take_while(|(oy,_)| sy + oy < H + PAD * 2).zip(i.iter().skip(sy - PAD.min(sy)))
                             .map(|((_,k), i)| {
                                 k.iter().enumerate()
                                     .skip_while(|(ox,_)| sx + ox < PAD)
-                                    .take_while(|(ox,_)| sx + ox < W).zip(i.iter().clone().skip(sx - PAD))
+                                    .take_while(|(ox,_)| sx + ox < W + PAD * 2).zip(i.iter().clone().skip(sx - PAD.min(sx)))
                                     .map(|((_,&k),&i)| i * k)
                                     .fold(U::default(), |acc, p| acc + p)
                             }).fold(U::default(), |acc, p| acc + p)
@@ -185,15 +185,15 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
         Ok(input.par_iter().map(|i| {
             kernel.par_iter().map(|k| {
                 k.par_iter().zip(i.par_iter()).map(|(k,i)| {
-                    (0..(H + PAD * 2 - FH)).into_par_iter().step_by(S).map(|sy| {
-                        (0..(W + PAD * 2 - FW)).into_par_iter().step_by(S).map(|sx| {
+                    (0..(H + PAD * 2 - FH + 1)).into_par_iter().step_by(S).map(|sy| {
+                        (0..(W + PAD * 2 - FW + 1)).into_par_iter().step_by(S).map(|sx| {
                             k.iter().enumerate()
                                 .skip_while(|(oy,_)| sy + oy < PAD)
-                                .take_while(|(oy,_)| sy + oy < H).zip(i.iter().skip(sy - PAD))
+                                .take_while(|(oy,_)| sy + oy < H + PAD * 2).zip(i.iter().skip(sy - PAD.min(sy)))
                                 .map(|((_,k), i)| {
                                     k.iter().enumerate()
                                         .skip_while(|(ox,_)| sx + ox < PAD)
-                                        .take_while(|(ox,_)| sx + ox < W).zip(i.iter().clone().skip(sx - PAD))
+                                        .take_while(|(ox,_)| sx + ox < W + PAD * 2).zip(i.iter().clone().skip(sx - PAD.min(sx)))
                                         .map(|((_,&k),&i)| i * k)
                                         .fold(U::default(), |acc, p| acc + p)
                                 }).fold(U::default(), |acc, p| acc + p)

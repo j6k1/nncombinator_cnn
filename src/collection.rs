@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut};
 
 use nncombinator::arr::{Arr, ArrView, ArrViewMut, AsView, AsViewMut, MakeView, MakeViewMut, SliceSize};
+use nncombinator::collection::ReShape;
 use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::{AsRawMutSlice, AsRawSlice};
 use rayon::iter::plumbing;
@@ -399,6 +400,12 @@ impl<'a,T,const H:usize,const W:usize> AsRawMutSlice<'a,T> for Image<T,H,W> wher
         &mut *self.arr
     }
 }
+impl<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize>
+    ReShape<(usize,usize),Vec<Vec<Image<T,FH,FW>>>> for Image<T,H,W> where T: Default + Clone + Send {
+    fn reshape(self,(pad,stride):(usize,usize)) -> Vec<Vec<Image<T, FH, FW>>> {
+        todo!()
+    }
+}
 /// Implementation of an immutable iterator for image
 #[derive(Debug,Eq,PartialEq)]
 pub struct ImageIter<'a,T,const W:usize> where T: Default + Clone + Send {
@@ -714,7 +721,7 @@ impl<'data, T: Send + Sync + 'static,const H:usize,const W:usize> plumbing::Prod
     fn into_iter(self) -> Self { self }
 
     fn split_at(self, mid: usize) -> (Self, Self) {
-        let (l,r) = self.arr.split_at(mid * H * W);
+        let (l,r) = self.arr.split_at(mid * W);
 
         (ImageIterProducer { arr: l }, ImageIterProducer { arr: r })
     }
