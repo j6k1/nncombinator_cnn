@@ -47,8 +47,8 @@ pub struct ConvolutionLayer<U,P,D,I,F,const C:usize,const K:usize,const H:usize,
 }
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
         const FH: usize,const FW: usize,const PAD:usize,const S:usize
-    > ConvolutionLayerInstantiation<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
-    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+    > ConvolutionLayerInstantiation<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
+    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U>,
           U: Default + Clone + Copy + Send + UnitValue<U>,
@@ -56,7 +56,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
           SerializedVec<U,I>: Debug + Send + Sync + 'static,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn instantiation<UI: FnMut() -> U>(parent:P,device:&DeviceCpu<U>,ui:UI)
-        -> Result<ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError> {
+        -> Result<ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>,LayerInstantiationError> {
         let mut kernel = Arr4::new();
 
         let mut ui = ui;
@@ -80,7 +80,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
 }
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
         const FH: usize,const FW: usize,const PAD:usize,const S:usize> Persistence<U,TextFilePersistence<U>,Specialized>
-    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + Persistence<U,TextFilePersistence<U>,Specialized>,
           U: Default + Clone + Copy + Send + UnitValue<U>+ FromStr,
@@ -126,7 +126,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
 }
 impl<T,U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> Persistence<U,T,Linear>
-    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where T: LinearPersistence<U>,
           P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + Persistence<U,T,Linear>,
@@ -180,7 +180,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn forward(&self,input:&Images<U,C,H,W>)
         -> Result<Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,EvaluateError> {
-        self.device.forward_convolution(input,&self.kernel)
+        Ok(self.device.forward_convolution(input.into(),&self.kernel)?)
     }
 }
 impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
@@ -237,12 +237,12 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn backward(&mut self, loss: &Images<U,K,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>)
         -> Result<Images<U,C,H,W>,TrainingError> {
-        self.device.backward_convolution(loss,&self.kernel)
+        Ok(self.device.backward_convolution(loss.into(),&self.kernel)?)
     }
 }
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> BackwardAll<U>
-        for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+        for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
@@ -261,7 +261,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
         let loss = input;
 
         s.map(|i| {
-            self.device.backward_weight_gradient_convolution(&loss,i).map(|g| {
+            self.device.backward_weight_gradient_convolution((&loss).into(),i.into()).map(|g| {
                 for (mut k,g) in self.kernel.iter_mut().zip(g.iter()) {
                     for (mut c,g) in k.iter_mut().zip(g.iter()) {
                         for (mut h,g) in c.iter_mut().zip(g.iter()) {
@@ -274,7 +274,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
             })
         })?;
 
-        let loss = self.device.backward_convolution(&loss,&self.kernel)?;
+        let loss = self.device.backward_convolution((&loss).into(),&self.kernel)?;
 
         let (s,loss) = self.parent.loss(loss,lossf,s)?;
 
@@ -303,7 +303,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
 }
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> Loss<U>
-    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
@@ -348,7 +348,7 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
     fn batch_forward(&self, input: Self::BatchInput) -> Result<Self::BatchOutput, TrainingError> {
         let input = self.parent.batch_forward(input)?;
 
-        Ok(self.device.batch_forward_convolution(&input,&self.kernel)?)
+        Ok(self.device.batch_forward_convolution((&input).try_into()?,&self.kernel)?)
     }
 }
 impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
@@ -388,18 +388,21 @@ impl<U,P,D,I,F,const C:usize,const K:usize,const H:usize,const W:usize,
     fn batch_pre_train(&self, input: Self::BatchInput) -> Result<Self::BatchOutStack, TrainingError> {
         let r = self.parent.batch_pre_train(input)?;
 
-        let u = r.map(|input| self.device.batch_forward_convolution(input,&self.kernel))?;
+        let u = r.map(|input| {
+            self.device.batch_forward_convolution(input.try_into()?,&self.kernel)
+        })?;
 
         Ok(Cons(r,u))
     }
 }
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> BatchBackward<U>
-    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
              BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward +
              BatchPreTrainBase<U> + BatchBackward<U> + BatchLoss<U,BatchLossInput=SerializedVec<U,Images<U,C,H,W>>> + 'static,
+          DeviceCpu<U>: Device<U> + DeviceConvolution<U,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S> + 'static,
           U: Default + Clone + Copy + Send + UnitValue<U>,
           I: Debug + Send + Sync + 'static,
           SerializedVec<U,I>: Debug + Send + Sync + 'static,
@@ -415,7 +418,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
 
         {
             s.map(|o| {
-                self.device.batch_backward_weight_gradient_convolution(&loss,o).map(|g| {
+                self.device.batch_backward_weight_gradient_convolution((&loss).try_into()?,o.try_into()?).map(|g:Arr4<U,K,C,FH,FW>| {
                     for (mut k,g) in self.kernel.iter_mut().zip(g.iter()) {
                         for (mut c,g) in k.iter_mut().zip(g.iter()) {
                             for (mut h,g) in c.iter_mut().zip(g.iter()) {
@@ -429,7 +432,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
             })?;
         }
 
-        let loss = self.device.batch_backward_convolution(&loss,&self.kernel)?;
+        let loss = self.device.batch_backward_convolution((&loss).try_into()?,&self.kernel)?;
 
         let (s,loss) = self.parent.batch_loss(loss,lossf,s)?;
 
@@ -439,7 +442,7 @@ impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
 impl<U,P,I,const C:usize,const K:usize,const H:usize,const W:usize,
     const FH: usize,const FW: usize,const PAD:usize,const S:usize> BatchLoss<U>
 
-    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,H,W>,C,K,H,W,FH,FW,PAD,S>
+    for ConvolutionLayer<U,P,DeviceCpu<U>,I,Arr4<U,K,C,FH,FW>,C,K,H,W,FH,FW,PAD,S>
     where P: ForwardAll<Input=I,Output=Images<U,C,H,W>> +
              BackwardAll<U,LossInput=Images<U,C,H,W>> + PreTrain<U> + Loss<U> +
              BatchForwardBase<BatchInput=SerializedVec<U,I>,BatchOutput=SerializedVec<U,Images<U,C,H,W>>> + BatchForward +

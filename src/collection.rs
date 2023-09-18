@@ -265,6 +265,15 @@ impl<'a,T,const C:usize,const H:usize,const W:usize> AsRawSlice<T> for ImagesVie
         &self.arr
     }
 }
+impl<'a,T,const C:usize,const H:usize,const W:usize> From<&'a Images<T,C,H,W>> for ImagesView<'a,T,C,H,W>
+    where T: Default + Clone + Send {
+
+    fn from(s: &'a Images<T,C,H,W>) -> Self {
+        ImagesView {
+            arr:&*s.arr
+        }
+    }
+}
 impl<'a,T,const C:usize,const H:usize,const W:usize> From<&'a Arr<T,{ C * H * W }>> for ImagesView<'a,T,C,H,W>
     where T: Default + Clone + Send {
 
