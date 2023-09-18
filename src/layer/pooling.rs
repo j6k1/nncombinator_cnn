@@ -116,7 +116,7 @@ impl<U,P,D,I,const C:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn forward(&self,input:&Images<U,C,H,W>)
                -> Result<Images<U,C,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,EvaluateError> {
-        self.device.forward_maxpooling_2d(input)
+        self.device.forward_maxpooling_2d(input.into())
     }
 }
 impl<U,P,D,I,const C:usize,const H:usize,const W:usize,
@@ -178,7 +178,7 @@ impl<U,P,I,const C:usize,const H:usize,const W:usize,
         let loss = input;
 
         let loss = s.map(|i| {
-            self.device.backward_maxpooling_2d(&loss,i,&o)
+            self.device.backward_maxpooling_2d((&loss).into(),i.into(),(&o).into())
         })?;
 
         let (s,loss) = self.parent.loss(loss,lossf,s)?;
@@ -250,7 +250,7 @@ impl<U,P,D,I,const C:usize,const H:usize,const W:usize,
     fn batch_forward(&self, input: Self::BatchInput) -> Result<Self::BatchOutput, TrainingError> {
         let input = self.parent.batch_forward(input)?;
 
-        Ok(self.device.batch_forward_maxpooling_2d(&input)?)
+        Ok(self.device.batch_forward_maxpooling_2d((&input).try_into()?)?)
     }
 }
 impl<U,P,D,I,const C:usize,const H:usize,const W:usize,
@@ -288,7 +288,9 @@ impl<U,P,D,I,const C:usize,const H:usize,const W:usize,
     fn batch_pre_train(&self, input: Self::BatchInput) -> Result<Self::BatchOutStack, TrainingError> {
         let r = self.parent.batch_pre_train(input)?;
 
-        let u = r.map(|input| self.device.batch_forward_maxpooling_2d(input))?;
+        let u = r.map(|input| {
+            self.device.batch_forward_maxpooling_2d(input.try_into()?)
+        })?;
 
         Ok(Cons(r,u))
     }
@@ -314,8 +316,9 @@ impl<U,P,I,const C:usize,const H:usize,const W:usize,
         let loss = input;
 
         let loss = s.map(|i| {
-            self.device.batch_backward_maxpooling_2d(&loss,i,&o)
+            self.device.batch_backward_maxpooling_2d((&loss).try_into()?,i.try_into()?,(&o).try_into()?)
         })?;
+
 
         let (s,loss) = self.parent.batch_loss(loss,lossf,s)?;
 
