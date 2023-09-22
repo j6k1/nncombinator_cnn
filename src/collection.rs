@@ -1,3 +1,4 @@
+use std::iter;
 use std::ops::{Add, AddAssign, Index, IndexMut};
 
 use nncombinator::arr::{Arr, ArrView, ArrViewMut, AsView, AsViewMut, MakeView, MakeViewMut, SliceSize};
@@ -412,86 +413,62 @@ pub fn expand_image<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usi
     -> Result<Vec<Vec<Image<T,FH,FW>>>,SizeMismatchError>
     where T: Default + Clone + Send + Sync + 'static {
 
-    let padded = rayon::iter::repeat(
-        rayon::iter::repeat(T::default()).take(W + PAD * 2).collect::<Vec<T>>()
+    let padded = iter::repeat(
+        iter::repeat(T::default()).take(W + PAD * 2).collect::<Vec<T>>()
     ).take(PAD).chain(
-        s.par_iter().map(|r| {
-            rayon::iter::repeat(T::default())
+        s.iter().map(|r| {
+            iter::repeat(T::default())
                 .take(PAD)
-                .chain(r.par_iter().cloned())
-                .chain(rayon::iter::repeat(T::default()).take(PAD)).collect::<Vec<T>>()
+                .chain(r.iter().cloned())
+                .chain(iter::repeat(T::default()).take(PAD)).collect::<Vec<T>>()
         })
-    ).chain(rayon::iter::repeat(
-        rayon::iter::repeat(T::default()).take(W + PAD * 2).collect::<Vec<T>>()
+    ).chain(iter::repeat(
+        iter::repeat(T::default()).take(W + PAD * 2).collect::<Vec<T>>()
     ).take(PAD)).collect::<Vec<Vec<T>>>();
 
-    Ok((0..=((H + PAD * 2 - FH) / S)).into_par_iter().map(|sy| {
-        padded.par_iter().skip(sy * S).take(FH).map(|r| {
-            (0..=((W + PAD * 2 - FW) / S)).into_par_iter().map(|sx| {
-                r.par_iter().cloned().skip(sx * S).take(FW).collect::<Vec<T>>()
+    Ok((0..=((H + PAD * 2 - FH) / S)).into_iter().map(|sy| {
+        padded.iter().skip(sy * S).take(FH).map(|r| {
+            (0..=((W + PAD * 2 - FW) / S)).into_iter().map(|sx| {
+                let start = sx * S;
+                r[start..(start+FW)].to_vec()
             }).collect::<Vec<Vec<T>>>()
-        }).fold(|| vec![Vec::with_capacity(FH); (W + PAD * 2 - FW) / S + 1], | acc,cols | {
-            acc.into_par_iter().zip(cols.into_par_iter()).map(|(mut acc,col)| {
+        }).fold(vec![Vec::with_capacity(FH); (W + PAD * 2 - FW) / S + 1], | acc,cols | {
+            acc.into_iter().zip(cols.into_iter()).map(|(mut acc,col)| {
                 acc.push(col);
                 acc
             }).collect::<Vec<Vec<Vec<T>>>>()
-        }).reduce(|| vec![Vec::with_capacity(FH); (W + PAD * 2 - FW) / S + 1], | mut acc,mut cols | {
-            acc.append(&mut cols);
-            acc
         })
-    }).collect::<Vec<Vec<Vec<Vec<T>>>>>().into_par_iter().map(|r| {
-        r.into_par_iter().map(|b| {
-            b.into_par_iter().map(|r| r.try_into()).collect::<Result<Vec<Arr<T,FW>>,SizeMismatchError>>()?.try_into()
+    }).map(|r| {
+        r.into_iter().map(|b| {
+            b.into_iter().map(|r| r.try_into()).collect::<Result<Vec<Arr<T,FW>>,SizeMismatchError>>()?.try_into()
         }).collect::<Result<Vec<Image<T,FH,FW>>,SizeMismatchError>>()
     }).collect::<Result<Vec<Vec<Image<T,FH,FW>>>,SizeMismatchError>>()?)
 }
 pub fn reduce_images<T,const H:usize,const W:usize,const FH:usize,const FW:usize,const PAD:usize,const S:usize>(s:Vec<Vec<Image<T,FH,FW>>>)
     -> Result<Image<T,H,W>,SizeMismatchError>
     where T: Default + Clone + Send + Sync + Add<T,Output=T> + AddAssign + 'static {
-    (0..((H + PAD * 2 - FH) / S + 1)).into_par_iter()
-                                     .map(|sy| sy * S)
-                                     .zip(s.into_par_iter())
-                                     .map(|(sy,i)| {
-                                         (0..((W + PAD * 2 - FW) / S + 1)).into_par_iter()
-                                             .map(|sx| sx * S)
-                                             .zip(i.into_par_iter())
-                                             .map(move |(sx, i)| {
-                                                 let mut o = Image::<T, H, W>::new();
+    let mut o = Image::<T, H, W>::new();
 
-                                                 for (r, mut o) in (0..FH)
-                                                     .zip(i.iter())
-                                                     .skip_while(|(dy, _)| sy + dy < PAD)
-                                                     .map(|(_, r)| r)
-                                                     .zip(o.iter_mut().skip(sy - PAD.min(sy))) {
+    s.iter().enumerate()
+        .map(|(sy,i)| (sy * S, i))
+        .for_each(|(sy,i)| {
+            i.iter().enumerate().map(|(sx, i)| (sx * S, i)).for_each(|(sx, i)| {
+                for (r, mut o) in (0..FH)
+                    .zip(i.iter())
+                    .skip_while(|(dy, _)| sy + dy < PAD)
+                    .map(|(_, r)| r)
+                    .zip(o.iter_mut().skip(sy - PAD.min(sy))) {
 
-                                                     for (p, o) in (0..FW).zip(r.iter().cloned())
-                                                         .skip_while(|(dx, _)| sx + dx < PAD)
-                                                         .map(|(_, p)| p)
-                                                         .zip(o.iter_mut().skip(sx - PAD.min(sx))) {
-                                                         *o += p;
-                                                     }
-                                                 }
-
-                                                 o
-                                             })
-    }).fold(|| Ok(Image::new()), | acc, i | {
-        let r = i.fold(|| Ok(Image::<T,H,W>::new()), | acc, i | {
-            acc.and_then(|acc| acc.par_iter().zip(i.par_iter()).map(|(acc,i)| {
-                acc.par_iter().cloned().zip(i.par_iter().cloned()).map(|(acc,p)| acc + p).collect::<Vec<T>>().try_into()
-            }).collect::<Result<Vec<Arr<T,W>>,SizeMismatchError>>()?.try_into())
-        }).reduce(|| Ok(Image::new()), | acc, i | {
-            acc.and_then(|acc| i.and_then(|i| acc.par_iter().zip(i.par_iter()).map(|(acc,i)| {
-                acc.par_iter().cloned().zip(i.par_iter().cloned()).map(|(acc,p)| acc + p).collect::<Vec<T>>().try_into()
-            }).collect::<Result<Vec<Arr<T,W>>,SizeMismatchError>>()?.try_into()))
-        })?;
-        acc.and_then(|acc| acc.par_iter().zip(r.par_iter()).map(|(acc,r)| {
-            acc.par_iter().cloned().zip(r.par_iter().cloned()).map(|(acc,p)| acc + p).collect::<Vec<T>>().try_into()
-        }).collect::<Result<Vec<Arr<T,W>>,SizeMismatchError>>()?.try_into())
-    }).reduce(|| Ok(Image::new()), | acc, i | {
-        acc.and_then(|acc| i.and_then(|i| acc.par_iter().zip(i.par_iter()).map(|(acc,i)| {
-            acc.par_iter().cloned().zip(i.par_iter().cloned()).map(|(acc,p)| acc + p).collect::<Vec<T>>().try_into()
-        }).collect::<Result<Vec<Arr<T,W>>,SizeMismatchError>>()?.try_into()))
-    })
+                    for (p, o) in (0..FW).zip(r.iter().cloned())
+                        .skip_while(|(dx, _)| sx + dx < PAD)
+                        .map(|(_, p)| p)
+                        .zip(o.iter_mut().skip(sx - PAD.min(sx))) {
+                        *o += p;
+                    }
+                }
+            });
+        });
+    Ok(o)
 }
 /// Implementation of an immutable iterator for image
 #[derive(Debug,Eq,PartialEq)]
@@ -519,6 +496,26 @@ impl<'a,T,const W:usize> Iterator for ImageIter<'a,T,W> where T: Default + Clone
             Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrView. The sizes do not match."))
         }
     }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let slice = std::mem::replace(&mut self.arr, &mut []);
+        if slice.is_empty() {
+            None
+        } else if n == 0 {
+            let (l,r) = slice.split_at(self.element_size());
+
+            self.arr = r;
+
+            Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrView. The sizes do not match."))
+        } else {
+            let (_,r) = slice.split_at(self.element_size() * n);
+            let (l,r) = r.split_at(self.element_size());
+
+            self.arr = r;
+
+            Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrView. The sizes do not match."))
+        }
+    }
 }
 /// Implementation of an mutable iterator for image
 #[derive(Debug,Eq,PartialEq)]
@@ -540,6 +537,26 @@ impl<'a,T,const W:usize> Iterator for ImageIterMut<'a,T,W> where T: Default + Cl
             None
         } else {
             let (l,r) = slice.split_at_mut(self.element_size());
+
+            self.arr = r;
+
+            Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrViewMut. The sizes do not match."))
+        }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let slice = std::mem::replace(&mut self.arr, &mut []);
+        if slice.is_empty() {
+            None
+        } else if n == 0 {
+            let (l,r) = slice.split_at_mut(self.element_size());
+
+            self.arr = r;
+
+            Some(l.try_into().expect("An error occurred in the conversion from Slice to ArrViewMut. The sizes do not match."))
+        } else {
+            let (_,r) = slice.split_at_mut(self.element_size() * n);
+            let (l,r) = r.split_at_mut(self.element_size());
 
             self.arr = r;
 

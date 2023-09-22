@@ -63,9 +63,9 @@ impl<U,const C:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn forward_maxpooling_2d<'a>(&self, input: ImagesView<'a,U, C, H, W>)
         -> Result<Images<U,C, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
-        Ok(input.par_iter().map(|i| {
-            expand_image::<U, H, W, FH, FW, PAD, S>(i)?.into_par_iter().map(|i| {
-                i.into_par_iter().map(|i| {
+        Ok(input.iter().map(|i| {
+            expand_image::<U, H, W, FH, FW, PAD, S>(i)?.into_iter().map(|i| {
+                i.into_iter().map(|i| {
                     i.iter().fold(U::initial_max_value(), |acc, i| {
                         i.iter().fold(acc, |acc, i| acc.max(i))
                     })
@@ -77,9 +77,9 @@ impl<U,const C:usize,const H:usize,const W:usize,
     fn backward_maxpooling_2d<'a>(&self, loss: ImagesView<'a,U, C, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
                               input: ImagesView<'a,U, C, H, W>,
                               _: ImagesView<'a,U, C, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>) -> Result<Images<U, C, H, W>, TrainingError> {
-        Ok(input.par_iter().map(|i| {
-            Ok(expand_image::<U, H, W, FH, FW, PAD, S>(i)?.into_par_iter().map(|i| {
-                i.into_par_iter().map(|i| {
+        Ok(input.iter().map(|i| {
+            Ok(expand_image::<U, H, W, FH, FW, PAD, S>(i)?.into_iter().map(|i| {
+                i.into_iter().map(|i| {
                     let ((y,x),_) = i.iter().enumerate().fold(((0,0), U::initial_max_value()), | ((y,x),max), (cy,i)| {
                         i.iter().enumerate().fold(((y,x),max), |((y,x),max), (cx,&i)| {
                             if !(i <= max) {
@@ -97,11 +97,11 @@ impl<U,const C:usize,const H:usize,const W:usize,
                     r
                 }).collect::<Vec<Image<U,FH,FW>>>()
             }).collect::<Vec<Vec<Image<U,FH,FW>>>>())
-        }).zip(loss.par_iter()).map(|(f,l)| {
-            reduce_images::<U,H,W,FH,FW,PAD,S>(f?.par_iter().zip(l.par_iter()).map(|(f,l)| {
-                Ok(f.par_iter().zip(l.par_iter()).map(|(f,&l)| {
-                    f.par_iter().map(|f| {
-                        f.par_iter().map(|&f| f * l).collect::<Vec<U>>().try_into()
+        }).zip(loss.iter()).map(|(f,l)| {
+            reduce_images::<U,H,W,FH,FW,PAD,S>(f?.iter().zip(l.iter()).map(|(f,l)| {
+                Ok(f.iter().zip(l.iter()).map(|(f,&l)| {
+                    f.iter().map(|f| {
+                        f.iter().map(|&f| f * l).collect::<Vec<U>>().try_into()
                     }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into()
                 }).collect::<Result<Vec<Image<U,FH,FW>>,SizeMismatchError>>()?)
             }).collect::<Result<Vec<Vec<Image<U,FH,FW>>>,SizeMismatchError>>()?)

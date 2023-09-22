@@ -133,6 +133,8 @@ fn test_mnist() {
             total_loss += loss;
 
             let _ = net.batch_forward(batch_data.1.into()).unwrap();
+
+            println!("count = {}",count);
         }
         println!("total_loss = {}", total_loss);
         println!("loss_average = {}", total_loss as f32 / count as f32);
