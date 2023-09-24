@@ -35,8 +35,8 @@ fn test_mnist() {
     let mut rnd = prelude::thread_rng();
     let rnd_base = Rc::new(RefCell::new(XorShiftRng::from_seed(rnd.gen())));
 
-    let n1 = Normal::<f32>::new(0.0, (2f32/(28f32*28f32)).sqrt()).unwrap();
-    let n2 = Normal::<f32>::new(0.0, (2f32/(16f32*14f32*14f32)).sqrt()).unwrap();
+    let n1 = Normal::<f32>::new(0.0, (2f32/(3f32*3f32)).sqrt()).unwrap();
+    let n2 = Normal::<f32>::new(0.0, (2f32/(16f32*3f32*3f32)).sqrt()).unwrap();
     let n3 = Normal::<f32>::new(0.0, (2f32/(32f32*7f32*7f32)).sqrt()).unwrap();
     let n4 = Normal::<f32>::new(0.0, 1f32/(120f32).sqrt()).unwrap();
 
@@ -88,7 +88,7 @@ fn test_mnist() {
             teachers.push((n,path));
         }
     }
-    let mut optimizer = MomentumSGD::new(0.004);
+    let mut optimizer = MomentumSGD::new(0.001);
 
     let mut rng = rand::thread_rng();
 
@@ -96,9 +96,9 @@ fn test_mnist() {
 
     let mut correct_answers = 0;
 
-    let mut teachers = teachers.into_iter().take(60000).collect::<Vec<(usize,PathBuf)>>();
+    let mut teachers = teachers.into_iter().take(20000).collect::<Vec<(usize,PathBuf)>>();
 
-    for _ in 0..5 {
+    for _ in 0..3 {
         let mut total_loss = 0.;
         let mut count = 0;
 
@@ -135,6 +135,7 @@ fn test_mnist() {
             let _ = net.batch_forward(batch_data.1.into()).unwrap();
 
             println!("count = {}",count);
+            println!("loss = {}", loss);
         }
         println!("total_loss = {}", total_loss);
         println!("loss_average = {}", total_loss as f32 / count as f32);

@@ -91,7 +91,7 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
           Assert<{ assert_convolution::<H,W,FH,FW,PAD,S>() }>: IsTrue {
     fn forward_convolution<'a>(&self, input: ImagesView<'a,U, C, H, W>, kernel: &Arr4<U,K,C,FH,FW>)
         -> Result<Images<U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>, EvaluateError> {
-        let ex = input.par_iter().map(|i| {
+        let ex = input.iter().map(|i| {
             expand_image::<U,H,W,FH,FW,PAD,S>(i)
         }).collect::<Result<Vec<Vec<Vec<Image<U,FH,FW>>>>,SizeMismatchError>>()?;
 
@@ -141,7 +141,7 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
     fn backward_weight_gradient_convolution<'a>(&self,loss: ImagesView<'a,U, K, { ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,
                                             input: ImagesView<'a,U, C, H, W>)
         -> Result<Arr4<U, K, C, FH, FW>, TrainingError> {
-        let ex = input.par_iter().map(|i| {
+        let ex = input.iter().map(|i| {
             expand_image::<U,H,W,FH,FW,PAD,S>(i)
         }).collect::<Result<Vec<Vec<Vec<Image<U,FH,FW>>>>,SizeMismatchError>>()?;
 
