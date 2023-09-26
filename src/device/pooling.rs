@@ -1,7 +1,8 @@
-use rayon::prelude::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
+use rayon::prelude::{ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
 use nncombinator::arr::{Arr, SerializedVec, SerializedVecView};
 use nncombinator::device::DeviceCpu;
 use nncombinator::error::{EvaluateError, SizeMismatchError, TrainingError};
+use nncombinator::mem::AsRawSlice;
 use nncombinator::ope::UnitValue;
 use crate::{Assert, assert_convolution, IsTrue};
 use crate::collection::{expand_image, Image, Images, ImagesView, reduce_images};
@@ -66,8 +67,8 @@ impl<U,const C:usize,const H:usize,const W:usize,
         Ok(input.iter().map(|i| {
             expand_image::<U, H, W, FH, FW, PAD, S>(i)?.into_iter().map(|i| {
                 i.into_iter().map(|i| {
-                    i.iter().fold(U::initial_max_value(), |acc, i| {
-                        i.iter().fold(acc, |acc, i| acc.max(i))
+                    i.as_raw_slice().iter().fold(U::initial_max_value(), |acc, i| {
+                        acc.max(i)
                     })
                 }).collect::<Vec<U>>().try_into()
             }).collect::<Result<Vec<Arr<U, { (W + 2 * PAD - FW) / S + 1 }>>, SizeMismatchError>>()?.try_into()
@@ -100,9 +101,9 @@ impl<U,const C:usize,const H:usize,const W:usize,
         }).zip(loss.iter()).map(|(f,l)| {
             reduce_images::<U,H,W,FH,FW,PAD,S>(f?.iter().zip(l.iter()).map(|(f,l)| {
                 Ok(f.iter().zip(l.iter()).map(|(f,&l)| {
-                    f.iter().map(|f| {
-                        f.iter().map(|&f| f * l).collect::<Vec<U>>().try_into()
-                    }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into()
+                    f.as_raw_slice().iter().map(|&f| {
+                        f * l
+                    }).collect::<Vec<U>>().try_into()
                 }).collect::<Result<Vec<Image<U,FH,FW>>,SizeMismatchError>>()?)
             }).collect::<Result<Vec<Vec<Image<U,FH,FW>>>,SizeMismatchError>>()?)
         }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()?.try_into()?)

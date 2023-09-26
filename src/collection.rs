@@ -5,7 +5,7 @@ use nncombinator::arr::{Arr, ArrView, ArrViewMut, AsView, AsViewMut, MakeView, M
 use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::{AsRawMutSlice, AsRawSlice};
 use rayon::iter::plumbing;
-use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 /// Images implementation
 #[derive(Debug,Eq,PartialEq)]
@@ -379,6 +379,21 @@ impl<T,const H:usize, const W:usize> IndexMut<(usize,usize)> for Image<T,H,W> wh
             panic!("index out of bounds: the len is {} but the index is {}",W,x);
         }
         &mut self.arr[y * W + x]
+    }
+}
+impl<T,const H:usize, const W: usize> TryFrom<Vec<T>> for Image<T,H,W> where T: Default + Clone + Send {
+    type Error = SizeMismatchError;
+
+    fn try_from(v: Vec<T>) -> Result<Self, Self::Error> {
+        if v.len() != H * W {
+            Err(SizeMismatchError(v.len(),H * W))
+        } else {
+            let arr = v.into_boxed_slice();
+
+            Ok(Image {
+                arr:arr
+            })
+        }
     }
 }
 impl<T,const H:usize,const W:usize> TryFrom<Vec<Arr<T,W>>> for Image<T,H,W> where T: Default + Clone + Send {

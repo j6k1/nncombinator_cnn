@@ -1,8 +1,9 @@
-use rayon::prelude::{IntoParallelIterator, ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
+use rayon::prelude::{ParallelIterator, IndexedParallelIterator, IntoParallelRefIterator};
 use nncombinator::arr::{Arr, Arr2, Arr3, Arr4, SerializedVec, SerializedVecView};
 use nncombinator::device::DeviceCpu;
 use nncombinator::error::{EvaluateError, TrainingError};
 use nncombinator::error::SizeMismatchError;
+use nncombinator::mem::AsRawSlice;
 use nncombinator::ope::UnitValue;
 use crate::{Assert, assert_convolution, IsTrue};
 
@@ -99,10 +100,8 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
             k.iter().zip(ex.iter()).map(|(k,i)| {
                 i.iter().map(|i| {
                     i.iter().map(|i| {
-                        i.iter().zip(k.iter()).map(|(i, k)| {
-                            i.iter().zip(k.iter()).map(|(&i, &k)| i * k).collect::<Vec<U>>()
-                        }).fold(U::default(), | acc, i | {
-                            acc + i.iter().fold(U::default(), | acc, &i | acc + i)
+                        i.as_raw_slice().iter().zip(k.as_raw_slice().iter()).fold(U::default(), | acc,(&i,&k) | {
+                            acc + i * k
                         })
                     }).collect::<Vec<U>>().try_into()
                 }).collect::<Result<Vec<Arr<U,{ ( W + 2 * PAD - FW ) / S + 1 }>>,SizeMismatchError>>()?.try_into()
@@ -110,9 +109,9 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
                 | acc,
                      i: Result<Image<U,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>,SizeMismatchError> | {
                 acc.and_then(|acc| i.and_then(|i| {
-                   acc.iter().zip(i.iter()).map(|(acc,i)| {
-                       acc.iter().zip(i.iter()).map(|(&acc,&p)| acc + p).collect::<Vec<U>>().try_into()
-                   }).collect::<Result<Vec<Arr<U,{ ( W + 2 * PAD - FW ) / S + 1 }>>,SizeMismatchError>>()?.try_into()
+                   acc.as_raw_slice().iter().zip(i.as_raw_slice().iter()).map(|(&acc,&p)| {
+                       acc + p
+                   }).collect::<Vec<U>>().try_into()
                 }))
             })
         }).collect::<Result<Vec<Image<U,{ ( H + 2 * PAD - FH ) / S + 1 }, { ( W + 2 * PAD - FW ) / S + 1 }>>,SizeMismatchError>>()?.try_into()?)
@@ -124,17 +123,17 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
             Ok(k.iter().map(|k| {
                reduce_images::<U,H,W,FH,FW,PAD,S>(l.iter().map(|l| {
                     l.iter().map(|&l| {
-                        k.iter().map(|k| {
-                            k.iter().map(|&k| k * l).collect::<Vec<U>>().try_into()
-                        }).collect::<Result<Vec<Arr<U, FW>>, SizeMismatchError>>()?.try_into()
+                        k.as_raw_slice().iter().map(|&k| {
+                            k * l
+                        }).collect::<Vec<U>>().try_into()
                     }).collect::<Result<Vec<Image<U, FH, FW>>, SizeMismatchError>>()
                 }).collect::<Result<Vec<Vec<Image<U, FH, FW>>>,SizeMismatchError>>()?)
             }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()?)
         }).fold( Ok(Images::new()), | acc, i | {
             acc.and_then(|acc| i.and_then(|i| acc.iter().zip(i.into_iter()).map(|(acc,i)| {
-                acc.iter().zip(i.iter()).map(|(acc,i)| {
-                    acc.iter().zip(i.iter()).map(|(&acc,&i)| acc + i).collect::<Vec<U>>().try_into()
-                }).collect::<Result<Vec<Arr<U,W>>,SizeMismatchError>>()?.try_into()
+                acc.as_raw_slice().iter().zip(i.as_raw_slice().iter()).map(|(&acc,&i)| {
+                    acc + i
+                }).collect::<Vec<U>>().try_into()
             }).collect::<Result<Vec<Image<U,H,W>>,SizeMismatchError>>()))?.try_into()
         })?)
     }
@@ -149,27 +148,23 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
             ex.iter().map(|i| {
                 l.iter().zip(i.iter()).map(|(l,i)| {
                     l.iter().zip(i).map(|(&l,i)| {
-                        i.iter().map(|r| {
-                            r.iter().map(|&p| {
-                                l * p
-                            }).collect::<Vec<U>>()
+                        i.as_raw_slice().iter().map(|&p| l * p).collect::<Vec<U>>().chunks(FW).map(|k| {
+                            k.to_vec()
                         }).collect::<Vec<Vec<U>>>()
                     }).collect::<Vec<Vec<Vec<U>>>>()
                 }).fold(Ok(Arr2::new()), | acc, i | {
                     acc.and_then(|acc| {
                         let i = i.into_iter().fold(Ok(Arr2::<U,FH,FW>::new()),| acc, i | {
-                            acc.and_then(|acc| acc.iter().zip(i.iter()).map(|(acc,i)| {
-                                acc.iter().zip(i.iter()).map(|(&acc,&p)| {
+                            acc.and_then(|acc| {
+                                acc.as_raw_slice().iter().zip(i.iter().flatten()).map(|(&acc, &p)| {
                                     acc + p
                                 }).collect::<Vec<U>>().try_into()
-                            }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into())
+                            })
                         })?;
 
-                        acc.iter().zip(i.iter()).map(|(acc,i)| {
-                            acc.iter().zip(i.iter()).map(|(&acc,&p)| {
-                                acc + p
-                            }).collect::<Vec<U>>().try_into()
-                        }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into()
+                        acc.as_raw_slice().iter().zip(i.as_raw_slice().iter()).map(|(&acc, &p)| {
+                            acc + p
+                        }).collect::<Vec<U>>().try_into()
                     })
                 })
             }).collect::<Result<Vec<Arr2<U,FH,FW>>,SizeMismatchError>>()?.try_into()
@@ -199,22 +194,18 @@ impl<U,const C:usize,const K:usize,const H:usize,const W:usize,
             acc.and_then(|acc| {
                 k.and_then(|k| Ok(acc.iter().zip(k.iter()).map(|(acc,k)| {
                     acc.iter().zip(k.iter()).map(|(acc,k)| {
-                        acc.iter().zip(k.iter()).map(|(acc,k)| {
-                            acc.iter().zip(k.iter()).map(|(&acc,&k)| {
-                                acc + k
-                            }).collect::<Vec<U>>().try_into()
-                        }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into()
+                        acc.as_raw_slice().iter().zip(k.as_raw_slice().iter()).map(|(&acc, &k)| {
+                            acc + k
+                        }).collect::<Vec<U>>().try_into()
                     }).collect::<Result<Vec<Arr2<U,FH,FW>>,SizeMismatchError>>()?.try_into()
                 }).collect::<Result<Vec<Arr3<U,C,FH,FW>>,SizeMismatchError>>()?.try_into()?))
             })
         }).reduce(|| Ok(Arr4::new()), | acc, k | {
             acc.and_then(|acc| k.and_then(|k| Ok(acc.iter().zip(k.iter()).map(|(acc,k)| {
                 acc.iter().zip(k.iter()).map(|(acc,k)| {
-                    acc.iter().zip(k.iter()).map(|(acc,k)| {
-                        acc.iter().zip(k.iter()).map(|(&acc,&k)| {
-                            acc + k
-                        }).collect::<Vec<U>>().try_into()
-                    }).collect::<Result<Vec<Arr<U,FW>>,SizeMismatchError>>()?.try_into()
+                    acc.as_raw_slice().iter().zip(k.as_raw_slice().iter()).map(|(&acc,&k)| {
+                        acc + k
+                    }).collect::<Vec<U>>().try_into()
                 }).collect::<Result<Vec<Arr2<U,FH,FW>>,SizeMismatchError>>()?.try_into()
             }).collect::<Result<Vec<Arr3<U,C,FH,FW>>,SizeMismatchError>>()?.try_into()?)))
         })?)
