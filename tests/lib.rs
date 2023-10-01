@@ -15,6 +15,7 @@ use nncombinator::arr::Arr;
 use nncombinator::device::DeviceCpu;
 use nncombinator::layer::activation::ActivationLayer;
 use nncombinator::layer::{AddLayer, AddLayerTrain, BatchForward, BatchTrain, ForwardAll};
+use nncombinator::layer::bias::BiasLayerBuilder;
 use nncombinator::layer::bridge::{BridgeLayerBuilder};
 use nncombinator::layer::input::InputLayer;
 use nncombinator::layer::linear::LinearLayerBuilder;
@@ -50,12 +51,16 @@ fn test_mnist() {
         let rnd = rnd.clone();
         ConvolutionLayerBuilder::<1, 16, 28, 28, 3, 3, 1, 1>::new().build(l, &device, move || n1.sample(&mut rnd.borrow_mut().deref_mut())).unwrap()
     }).add_layer(|l| {
+        BiasLayerBuilder::new().build(l,&device, || 0f32).unwrap()
+    }).add_layer(|l| {
         ActivationLayer::new(l,ReLu::new(&device),&device)
     }).add_layer(|l| {
         MaxPooling2DBuilder::<16,28,28,2,2,0,2>::new().build(l,&device).unwrap()
     }).add_layer(|l| {
         let rnd = rnd.clone();
         ConvolutionLayerBuilder::<16,32,14,14,3,3,1,1>::new().build(l,&device, move || n2.sample(&mut rnd.borrow_mut().deref_mut())).unwrap()
+    }).add_layer(|l| {
+        BiasLayerBuilder::new().build(l,&device, || 0f32).unwrap()
     }).add_layer(|l| {
         ActivationLayer::new(l,ReLu::new(&device),&device)
     }).add_layer(|l| {
@@ -88,7 +93,7 @@ fn test_mnist() {
             teachers.push((n,path));
         }
     }
-    let mut optimizer = MomentumSGD::new(0.001);
+    let mut optimizer = MomentumSGD::new(0.005);
 
     let mut rng = rand::thread_rng();
 
