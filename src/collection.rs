@@ -1,4 +1,3 @@
-use std::iter;
 use std::ops::{Add, AddAssign, Index, IndexMut};
 
 use nncombinator::arr::{Arr, ArrView, ArrViewMut, AsView, AsViewMut, MakeView, MakeViewMut, SliceSize};
@@ -428,18 +427,17 @@ pub fn expand_image<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usi
     -> Result<Vec<Vec<Image<T,FH,FW>>>,SizeMismatchError>
     where T: Default + Clone + Send + Sync + 'static {
 
-    let padded = iter::repeat(
-        iter::repeat(T::default()).take(W + PAD * 2).collect::<Vec<T>>()
-    ).take(PAD).chain(
-        s.iter().map(|r| {
-            iter::repeat(T::default())
-                .take(PAD)
-                .chain(r.iter().cloned())
-                .chain(iter::repeat(T::default()).take(PAD)).collect::<Vec<T>>()
-        })
-    ).chain(iter::repeat(
-        iter::repeat(T::default()).take(W + PAD * 2).collect::<Vec<T>>()
-    ).take(PAD)).collect::<Vec<Vec<T>>>();
+    let mut padded = vec![vec![T::default(); W + PAD * 2]; PAD];
+
+    for cur in s.iter() {
+        let mut row = vec![T::default(); PAD];
+        row.extend_from_slice(cur.as_raw_slice());
+        row.resize(W + PAD * 2,T::default());
+
+        padded.push(row);
+    }
+
+    padded.resize(H + PAD * 2,vec![T::default(); W + PAD * 2]);
 
     Ok((0..=((H + PAD * 2 - FH) / S)).into_iter().map(|sy| {
         padded.iter().skip(sy * S).take(FH).map(|r| {
