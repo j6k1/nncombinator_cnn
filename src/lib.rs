@@ -10,10 +10,12 @@ extern crate rcublas;
 extern crate rcudnn;
 extern crate rcudnn_sys;
 extern crate rayon;
+extern crate itertools;
 
 extern crate nncombinator;
 
 pub mod collection;
+pub mod reshape;
 pub mod device;
 pub mod layer;
 

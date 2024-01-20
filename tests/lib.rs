@@ -4,6 +4,7 @@
 extern crate nncombinator_cnn;
 
 pub mod common;
+pub mod reshape;
 
 use std::cell::RefCell;
 use std::fs;
@@ -69,12 +70,12 @@ fn test_mnist() {
         BridgeLayerBuilder::<Arr<f32,{32 * 7 * 7}>>::new().build(l,&device).unwrap()
     }).add_layer(|l| {
         let rnd = rnd.clone();
-        LinearLayerBuilder::new::<{32 * 7 * 7},120>().build(l,&device, move || n3.sample(&mut rnd.borrow_mut().deref_mut()), || 0.).unwrap()
+        LinearLayerBuilder::<{32 * 7 * 7},120>::new().build(l,&device, move || n3.sample(&mut rnd.borrow_mut().deref_mut()), || 0.).unwrap()
     }).add_layer(|l| {
         ActivationLayer::new(l,ReLu::new(&device),&device)
     }).add_layer(|l| {
         let rnd = rnd.clone();
-        LinearLayerBuilder::new::<120,10>().build(l,&device, move || n4.sample(&mut rnd.borrow_mut().deref_mut()), || 0.).unwrap()
+        LinearLayerBuilder::<120,10>::new().build(l,&device, move || n4.sample(&mut rnd.borrow_mut().deref_mut()), || 0.).unwrap()
     }).add_layer(|l| {
         ActivationLayer::new(l,SoftMax::new(&device),&device)
     }).add_layer_train(|l| {
