@@ -23,7 +23,7 @@ fn test_im2col() {
 
     for i in s.iter() {
         let expected = im2col::<f32, 28, 28, 3, 3, 1, 1>(&i);
-        let actual = reshape::im2col::<f32, 28, 28, 3, 3, 1, 1>(&i).unwrap();
+        let actual = reshape::im2col::<f32, 28, 28, 3, 3, 1, 1>(&i);
 
         for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
             for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
@@ -38,7 +38,6 @@ fn test_im2col() {
 fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,const PAD:usize,const S:usize>(image:&ImageView<'a,T,H,W>)
     -> Arr2<T,{ ((H + PAD * 2 - FH) / S + 1) * ((W + PAD * 2 - FW) / S + 1) }, { FH * FW }>
     where T: Default + Clone + Copy + Send + Sync + 'static {
-    let ys = (H + PAD * 2 - FH) / S + 1;
     let xs = (W + PAD * 2 - FW) / S + 1;
 
     let mut r = Arr2::<T,{ ((H + PAD * 2 - FH) / S + 1) * ((W + PAD * 2 - FW) / S + 1) }, { FH * FW }>::new();
