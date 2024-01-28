@@ -1,76 +1,93 @@
 use itertools::Itertools;
-
+use nncombinator::arr::Arr2;
+use nncombinator::error::SizeMismatchError;
 use nncombinator::mem::AsRawSlice;
+
 use crate::collection::{ImageView};
 
 pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,const PAD:usize,const S:usize>(image:&ImageView<'a,T,H,W>)
-    -> Vec<T> where T: Default + Clone + Copy + Send + Sync + 'static {
+    -> Result<Arr2<T,{ ((H + PAD * 2 - FH) / S + 1) * ((W + PAD * 2 - FW) / S + 1) }, { FH * FW }>,SizeMismatchError>
+    where T: Default + Clone + Copy + Send + Sync + 'static {
     let image = image.as_raw_slice();
 
-    let ys = ((H + PAD * 2 - FH) / S + 1) * FH;
-    let xs = ((W + PAD * 2 - FW) / S + 1) * FW;
+    let ys = (H + PAD * 2 - FH) / S + 1;
+    let xs = (W + PAD * 2 - FW) / S + 1;
 
-    let remain_width = (PAD + S - 1) / S * S;
-    let dst_width = xs - remain_width * 2 * S / FW - FH * FW;
-    let src_width = W - remain_width * 2 - FW;
+    let remain_width = (PAD + S - 1) / S;
+    let remain_height = (PAD + S - 1) / S;
+    let yskiped = PAD / FH;
+    let xskiped = PAD / FW;
+    let distance = (FW + S - 1);
+    let dist = xs / distance * distance;
 
-    let mut r = vec![T::default(); ys * xs];
+    let dst_width = xs - remain_width * 2 * FW / S - FH * FW;
+    let src_width = W + PAD * 2 - remain_width * 2 - FW;
 
-    for sy in [0,ys - remain_width - FH] {
-        for y in (sy..(sy + remain_width)).step_by(FH) {
-            for ly in 0..FH {
-                for ox in (0..FW).step_by(S).enumerate().map(|(i, _)| i) {
-                    let dst_start_offset = xs * y + ly * FW + ox * FH * FW;
-                    let src_start_offset = (y.max(remain_width) - remain_width) * S / FH + ly * W + ox * S;
+    let mut r = vec![T::default(); ys * FH * xs * FW];
 
-                    let it = (
-                        &mut r[(dst_start_offset)..(dst_start_offset + dst_width)]
-                    ).chunks_mut(FW).step_by(FH / (FW / S)).zip((&image[
-                        (src_start_offset)..(src_start_offset + src_width)
-                    ]).chunks(FW));
+    for y in yskiped..(ys - yskiped) {
+        let pad = (PAD as isize - (y * FH) as isize).max(0) as usize;
 
-                    for (i, (d, s)) in it.enumerate() {
-                        for (d, s) in d.iter_mut()
-                            .skip((PAD - PAD.min(y + ly)) * FW + (PAD - PAD.min(ox + i) * S))
-                            .zip(s.iter()
-                                .take(FH - (PAD - (PAD as isize)
-                                .max(PAD as isize - ys as isize - (y as isize + ly as isize)) as usize) +
-                                   FW - (PAD - (PAD as isize).max(
-                                PAD as isize - xs as isize - (ox + i) as isize * S as isize + FW as isize
-                                   ) as usize
-                                ))
-                            ) {
-                            *d = *s;
-                        }
+        for ly in (0..FH).skip(pad).take((FH as isize + ((H + PAD) as isize - (FH + y * S) as isize).min(0)) as usize) {
+            for x in (0..distance).skip(xskiped) {
+                let dp = (PAD as isize - (x * distance) as isize).max(0) as usize * (x == 0) as usize;
+                let sx = (PAD as isize - (x * S) as isize).max(0) as usize * (x == 0) as usize;
+
+                let dst_start_offset = (y * FH * FW * xs + (ly * FW + x * FH * distance)) + dp;
+                let src_start_offset = ((y * S + ly) - PAD) * W + x * S + sx - PAD;
+
+                for (d,s) in (&mut r[
+                    dst_start_offset..(dst_start_offset + FW - dp)
+                ]).iter_mut().zip((&image[src_start_offset..(src_start_offset + FW)]).iter()) {
+                    *d = *s;
+                }
+
+                let dst_start_offset = (y * FH * xs + ly + distance * FH) * FW + x * distance * FH;
+                let src_start_offset = ((y * S + ly) - PAD) * W + x * S + distance - PAD;
+
+                for (d,s) in (&mut r[
+                    dst_start_offset..((y * FH * xs + ly + (xs - 1) * FH) * FW / distance * distance)
+                ]).chunks_mut(FW).step_by(FH * distance).zip((&image[
+                    src_start_offset..(src_start_offset + W - (x * S + distance) + PAD)
+                ]).chunks(S * distance)) {
+                    for (d,s) in d.iter_mut().zip(s.iter()) {
+                        *d = *s;
                     }
                 }
+            }
+
+            let dst_start_offset = (y * FH * xs + ly + dist * FH) * FW;
+            let src_start_offset = ((y * S + ly) - PAD) * W + dist * S - PAD;
+
+            for (d,s) in (&mut r[
+                dst_start_offset..(dst_start_offset + FW)
+            ]).iter_mut().zip((&image[src_start_offset..(src_start_offset + FW - PAD)]).iter()) {
+                *d = *s;
             }
         }
     }
 
-    for sx in [0, xs - FW * S / FW] {
-        for y in (remain_width..(ys - remain_width - FH)).step_by(FH) {
+    return r.try_into();
+    for sx in [0, xs - remain_width * FW / S] {
+        for y in ((remain_width * FH / S)..(ys - remain_width * FH / S - FH)).step_by(FH) {
             for ly in 0..FH {
-                for ox in (0..FW).step_by(S).enumerate().map(|(i, _)| i) {
-                    let dst_start_offset = xs * y + sx + ly * FW + ox * FH * FW;
-                    let src_start_offset = (y - remain_width + (remain_width - PAD) ) * S / FH + ly * W + sx * S / FW + ox * S;
+                for ox in (0..(remain_width * FW / S)).step_by(S).enumerate().map(|(i, _)| i) {
+                    let dst_start_offset = (y + ly) * FW + sx * ys + ox * FH * FW;
+                    let src_start_offset = ((y * S / FH + ly).max(remain_width) - remain_width) * W + ox * S;
 
                     let it = (
-                        &mut r[(dst_start_offset)..(dst_start_offset + remain_width * FH * FW)]
-                    ).chunks_mut(FW).step_by(FH / FW).zip((&image[
+                        &mut r[(dst_start_offset)..(dst_start_offset + remain_width * FW / S)]
+                    ).chunks_mut(FW).step_by(FW / S).zip((&image[
                         (src_start_offset)..(src_start_offset + remain_width)
                     ]).chunks(FW));
 
-                    for (i, (d, s)) in it.enumerate() {
+                    for (d, s) in it {
                         for (d, s) in d.iter_mut()
-                            .skip((PAD - PAD.min(y + ly)) * FW + (PAD - PAD.min(ox + i) * S))
+                            .skip((PAD as isize - ((y + ly) * S / FH) as isize).max(0) as usize * FW +
+                                (PAD as isize - (ox * S) as isize).max(0) as usize
+                            )
                             .zip(s.iter()
-                                .take(FH - (PAD - (PAD as isize)
-                                .max(PAD as isize - ys as isize - (y as isize + ly as isize)) as usize) +
-                                    FW - (PAD - (PAD as isize).max(
-                                    PAD as isize - xs as isize - (ox + i) as isize * S as isize + FW as isize
-                                    ) as usize
-                                ))
+                                 //.take(FW - ((ox * S + i * FW + FW) as isize - (xs * S / FW - PAD) as isize).max(0) as usize)
                             ) {
                             *d = *s;
                         }
@@ -83,8 +100,8 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
     for y in (remain_width..(ys - remain_width - FH)).step_by(FH) {
         for ly in 0..FH {
             for ox in (0..FW).step_by(S).enumerate().map(|(i, _)| i) {
-                let dst_start_offset = xs * y + remain_width * S / FW + ly * FW + ox * FW;
-                let src_start_offset = y - remain_width * S / FH + ly * W + ox * S;
+                let dst_start_offset = xs * y + remain_width * FW / S + ly * FW + ox * FH * FW;
+                let src_start_offset = (y - remain_width + (remain_width - PAD)) / FH + ly * W + ox * S;
 
                 let it = (
                     &mut r[(dst_start_offset)..(dst_start_offset + dst_width)]
@@ -110,9 +127,9 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
 
                     let it = (
                         &mut r[(dst_start_offset)..(dst_start_offset + dst_width)]
-                    ).chunks_mut(FW).step_by(FW / S).skip((W - FW) / FW / 8 * 8).zip((&image[
+                    ).chunks_mut(FW).step_by(FW / S).zip((&image[
                         (src_start_offset)..(src_start_offset + src_width)
-                    ]).chunks(FW).skip((W - FW) / FW / 8 * 8));
+                    ]).chunks(FW)).skip((W - FW) / FW / 8 * 8);
 
                     for (d, s) in it {
                         for (d,s) in d.iter_mut().zip(s.iter()) {
@@ -122,9 +139,9 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                 } else {
                     let it = (
                         &mut r[(dst_start_offset)..(dst_start_offset + dst_width)]
-                    ).chunks_mut(FW).step_by(FW / S).skip((W - FW) / FW / 8 * 8).zip((&image[
+                    ).chunks_mut(FW).step_by(FW / S).zip((&image[
                         (src_start_offset)..(src_start_offset + src_width)
-                        ]).chunks(FW).skip((W - FW) / FW / 8 * 8));
+                    ]).chunks(FW).skip((W - FW) / FW / 8 * 8));
 
                     for (d, s) in it {
                         for (d,s) in d.iter_mut().zip(s.iter()) {
@@ -136,5 +153,5 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
         }
     }
 
-    r
+    r.try_into()
 }

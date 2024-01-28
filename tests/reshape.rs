@@ -1,49 +1,59 @@
-use rand::{prelude, Rng, SeedableRng};
-use rand_xorshift::XorShiftRng;
+#![allow(unused_attributes)]
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
+
+use nncombinator::arr::Arr2;
 use nncombinator_cnn::collection::{Images, ImageView};
 use nncombinator_cnn::reshape;
 
 #[test]
 fn test_im2col() {
-    let mut rnd = prelude::thread_rng();
-
-    let mut rnd = XorShiftRng::from_seed(rnd.gen());
-
     let mut s = Images::<f32,1,28,28>::new();
+
+    let mut c = 1;
 
     for mut i in s.iter_mut() {
         for mut i in i.iter_mut() {
             for i in i.iter_mut() {
-                *i = rnd.gen();
+                *i = c as f32;
+                c += 1;
             }
         }
     }
 
     for i in s.iter() {
         let expected = im2col::<f32, 28, 28, 3, 3, 1, 1>(&i);
-        let actual = reshape::im2col::<f32, 28, 28, 3, 3, 1, 1>(&i);
+        let actual = reshape::im2col::<f32, 28, 28, 3, 3, 1, 1>(&i).unwrap();
 
         for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
-            if e != a {
-                dbg!(i);
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
             }
-            assert_eq!(e,a);
         }
     }
 }
 fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,const PAD:usize,const S:usize>(image:&ImageView<'a,T,H,W>)
-    -> Vec<T> where T: Default + Clone + Copy + Send + Sync + 'static {
-    let ys = ((H + PAD * 2 - FH) / S + 1) * FH;
-    let xs = ((W + PAD * 2 - FW) / S + 1) * FW;
+    -> Arr2<T,{ ((H + PAD * 2 - FH) / S + 1) * ((W + PAD * 2 - FW) / S + 1) }, { FH * FW }>
+    where T: Default + Clone + Copy + Send + Sync + 'static {
+    let ys = (H + PAD * 2 - FH) / S + 1;
+    let xs = (W + PAD * 2 - FW) / S + 1;
 
-    let mut r = vec![T::default(); ys * xs];
+    let mut r = Arr2::<T,{ ((H + PAD * 2 - FH) / S + 1) * ((W + PAD * 2 - FW) / S + 1) }, { FH * FW }>::new();
 
-    for y in (0..(H - FH + PAD * 2)).step_by(S) {
-        for x in (0..(W - FW + PAD * 2)).step_by(S) {
-            for i in y..(y + FH) {
-                for j in x..(x + FW) {
-                    if y + i >= PAD && y + i < H - FH + PAD && x + j >= PAD && x + j < W - FW + PAD {
-                        r[(y * FH / S + i) * xs + x * FW / S + j] = image[(y + i, x + j)];
+    for y in 0..((H + PAD * 2 - FH) / S + 1) {
+        for x in 0..((W + PAD * 2 - FW) / S + 1) {
+            for i in 0..FH {
+                for j in 0..FW {
+                    let sy = y * S + i;
+                    let sx = x * S + j;
+
+                    if sy >= PAD && sy < H + PAD && sx >= PAD && sx < W + PAD {
+                        r[(y * xs + x, i * FW + j)] = image[(
+                            sy - PAD, sx - PAD
+                        )];
                     }
                 }
             }
