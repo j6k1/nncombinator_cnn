@@ -64,7 +64,6 @@ fn test_im2col_2pad_2stride() {
         }
     }
 }
-
 #[test]
 fn test_im2col_1pad_2stride() {
     let mut s = Images::<f32,1,29,29>::new();
@@ -83,6 +82,35 @@ fn test_im2col_1pad_2stride() {
     for i in s.iter() {
         let expected = im2col::<f32, 29, 29, 3, 3, 1, 2>(&i);
         let actual = reshape::im2col::<f32, 29, 29, 3, 3, 1, 2>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_2pad_1stride() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 3, 3, 2, 1>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 3, 3, 2, 1>(&i);
 
         for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
             for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
