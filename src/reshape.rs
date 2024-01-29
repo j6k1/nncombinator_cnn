@@ -42,7 +42,7 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                 let dst_start_offset = (y * FH * xs + ly + distance / S * FH) * FW + x * FW * FH;
                 let src_start_offset = ((y * S + ly) - PAD) * W + x * S + distance - PAD;
 
-                let dst_end_offset = (y * FH * xs + ly) * FW + xs * FH * FW / distance * distance;
+                let dst_end_offset = (y * FH * xs) * FW + xs * FH * FW;
                 let src_end_offset = src_start_offset + W - (x * S + distance) + PAD;
 
                 for (d,s) in (&mut r[
@@ -53,17 +53,6 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                     for (d,s) in d.iter_mut().zip(s.iter()) {
                         *d = *s;
                     }
-                }
-            }
-
-            let dst_start_offset = (y * FH * xs + ly + dist * FH) * FW;
-            let src_start_offset = ((y * S + ly) - PAD) * W + dist * S - PAD;
-
-            if dist * S - PAD < W {
-                for (d, s) in (&mut r[
-                    dst_start_offset..(dst_start_offset + FW)
-                ]).iter_mut().zip((&image[src_start_offset..(src_start_offset + FW - PAD)]).iter()) {
-                    *d = *s;
                 }
             }
         }
