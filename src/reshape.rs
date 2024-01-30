@@ -14,8 +14,8 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
     let ys = (H + PAD * 2 - FH) / S + 1;
     let xs = (W + PAD * 2 - FW) / S + 1;
 
-    let yskiped = PAD / FH;
-    let xskiped = PAD / FW;
+    let yskiped = (PAD as isize - FH as isize).max(0) as usize / S;
+    let xskiped = (PAD as isize - FW as isize).max(0) as usize / S;
     let distance = FW + S - 1;
 
     let mut r = vec![T::default(); ys * FH * xs * FW];
@@ -23,16 +23,15 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
     for y in yskiped..(ys - yskiped) {
         let p = (PAD as isize - (y * S) as isize).max(0) as usize;
 
-        for ly in (0..FH).skip(p).take((FH as isize + ((H + PAD) as isize - (FH + y * S) as isize).min(0)) as usize) {
+        for ly in (0..FH).skip(p).take((FH as isize + ((H + PAD) as isize - (FH + y * S) as isize).min(d0)) as usize) {
             for x in 0..(distance / S) {
-                let yp = PAD.min(y * S + ly);
-                let sx = (PAD as isize - (x * S) as isize - (xskiped * FW) as isize).max(0) as usize * (x * S <= PAD) as usize;
-                let xp = PAD.min(x * S + sx);
-
                 let x = x + xskiped;
 
-                let dst_start_offset = (y * FH * FW * xs + (ly * FW + x * FH * FW)) + sx;
-                let src_start_offset = ((y * S + ly) - yp) * W + x * S + sx - xp;
+                let rp = PAD.min(x * S);
+                let sx = (PAD as isize - (x * S) as isize).max(0).min(FW as isize) as usize * (x * S <= PAD) as usize;
+
+                let dst_start_offset = (y * FH * xs + (ly + x * FH)) * FW + sx;
+                let src_start_offset = ((y * S + ly) - PAD) * W + x * S - rp;
 
                 for (d,s) in (&mut r[
                     dst_start_offset..(dst_start_offset + FW - sx)
@@ -40,11 +39,13 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                     *d = *s;
                 }
 
+                let rp = PAD.min(x  * S + distance);
+
                 let dst_start_offset = (y * FH * xs + ly + distance / S * FH) * FW + x * FW * FH;
-                let src_start_offset = ((y * S + ly) - yp) * W + x * S + distance - xp;
+                let src_start_offset = ((y * S + ly) - PAD) * W + x * S + distance - rp;
 
                 let dst_end_offset = (y * FH * xs) * FW + xs * FH * FW;
-                let src_end_offset = src_start_offset + W - (x * S + distance) + xp;
+                let src_end_offset = src_start_offset + W - (x * S + distance) + rp;
 
                 for (d,s) in (&mut r[
                     dst_start_offset..dst_end_offset
