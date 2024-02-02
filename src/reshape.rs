@@ -51,7 +51,7 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                 let src_start_offset = ((y * S + ly) - PAD) * W + x * S + distance - rp;
 
                 let dst_end_offset = (y * FH * xs) * FW + xs * FH * FW;
-                let src_end_offset = src_start_offset + W - (x * S + distance) + rp;
+                let src_end_offset = src_start_offset + W + rp - (x * S + distance);
 
                 for (d,s) in (&mut r[
                     dst_start_offset..(dst_end_offset.max(dst_start_offset))
