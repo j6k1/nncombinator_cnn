@@ -703,6 +703,470 @@ fn test_im2col_2pad_2stride_fh5_fw3() {
     }
 }
 #[test]
+fn test_im2col_1pad_2stride_fh5_fw3() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 5, 3, 1, 2>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 5, 3, 1, 2>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_2pad_1stride_fh5_fw3() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 5, 3, 2, 1>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 5, 3, 2, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_0pad_1strinde_fh5_fw3() {
+    let mut s = Images::<f32,1,28,28>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 28, 28, 5, 3, 0, 1>(&i);
+        let actual = reshape::im2col::<f32, 28, 28, 5, 3, 0, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_3pad_1stride_fh5_fw3() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 5, 3, 3, 1>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 5, 3, 3, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_5pad_1stride_fh5_fw3() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 5, 3, 5, 1>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 5, 3, 5, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_6pad_1stride_fh5_fw3() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 5, 3, 6, 1>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 5, 3, 6, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_10pad_1stride_fh5_fw3() {
+    let mut s = Images::<f32,1,29,29>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 29, 29, 5, 3, 10, 1>(&i);
+        let actual = reshape::im2col::<f32, 29, 29, 5, 3, 10, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_1pad_1stride_fh5_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 5, 3, 1, 1>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 5, 3, 1, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_3pad_1stride_fh5_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 5, 3, 3, 1>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 5, 3, 3, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_4pad_1stride_fh5_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 5, 3, 4, 1>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 5, 3, 4, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_6pad_1stride_fh5_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 5, 3, 6, 1>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 5, 3, 6, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_7pad_1stride_fh5_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 5, 3, 7, 1>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 5, 3, 7, 1>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_3pad_3stride_fh6_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 6, 3, 3, 3>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 6, 3, 3, 3>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_5pad_2stride_fh6_fw4_w4_h4() {
+    let mut s = Images::<f32,1,4,4>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 4, 4, 6, 4, 5, 2>(&i);
+        let actual = reshape::im2col::<f32, 4, 4, 6, 4, 5, 2>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_6pad_3stride_fh6_fw3_w3_h3() {
+    let mut s = Images::<f32,1,3,3>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 3, 3, 6, 3, 6, 3>(&i);
+        let actual = reshape::im2col::<f32, 3, 3, 6, 3, 6, 3>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
+fn test_im2col_12pad_3stride_fh10_fw4_w4_h4() {
+    let mut s = Images::<f32,1,4,4>::new();
+
+    let mut c = 1;
+
+    for mut i in s.iter_mut() {
+        for mut i in i.iter_mut() {
+            for i in i.iter_mut() {
+                *i = c as f32;
+                c += 1;
+            }
+        }
+    }
+
+    for i in s.iter() {
+        let expected = im2col::<f32, 4, 4, 10, 4, 12, 3>(&i);
+        let actual = reshape::im2col::<f32, 4, 4, 10, 4, 12, 3>(&i);
+
+        for (i,(e,a)) in expected.iter().zip(actual.iter()).enumerate() {
+            for (j,(e,a)) in e.iter().zip(a.iter()).enumerate() {
+                if e != a {
+                    dbg!(i,j);
+                }
+                assert_eq!(e,a);
+            }
+        }
+    }
+}
+#[test]
 fn test_im2col_3pad_1stride_fh3_fw3() {
     let mut s = Images::<f32,1,29,29>::new();
 

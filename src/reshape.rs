@@ -25,7 +25,7 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
     for y in yskiped..(ys - yskiped) {
         let p = (PAD as isize - (y * S) as isize).max(0) as usize;
 
-        for ly in (0..FH).skip(p).take((FH as isize + ((H + PAD) as isize - (FH + y * S) as isize).min(0)) as usize) {
+        for ly in (0..FH).skip(p).take((FH as isize + ((H + PAD) as isize - (FH + y * S) as isize).min(0)) as usize - p) {
             for x in 0..xc {
                 let x = x + xskiped;
 
