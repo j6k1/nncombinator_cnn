@@ -31,13 +31,13 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
 
                 let rp = PAD.min(x * S);
                 let sx = (PAD as isize - (x * S) as isize).max(0).min(FW as isize) as usize * (x * S <= PAD) as usize;
-                let ew = (FW - sx).min(W + PAD - (x * S));
+                let cw = (FW - sx).min(W - (x * S - rp));
                 let dst_start_offset = (y * FH * xs + (ly + x * FH)) * FW + sx;
                 let src_start_offset = ((y * S + ly) - PAD) * W + x * S - rp;
 
                 for (d,s) in (&mut r[
                     dst_start_offset..(dst_start_offset + FW - sx)
-                ]).iter_mut().zip((&image[src_start_offset..(src_start_offset + ew)]).iter()) {
+                ]).iter_mut().zip((&image[src_start_offset..(src_start_offset + cw)]).iter()) {
                     *d = *s;
                 }
 
