@@ -16,7 +16,7 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
 
     let yskiped = (PAD as isize - FH as isize).max(0) as usize / S + (PAD / FH).min(1);
     let xskiped = (PAD as isize - FW as isize).max(0) as usize / S + (PAD / FW).min(1);
-    let distance = FW + S - 1;
+    let distance = (FW + S - 1) / S * S;
     let xc = distance / S;
     let xc = xc.min(W + PAD * 2 - (xc - 1) * S);
 
@@ -43,7 +43,7 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
 
                 let rp = PAD.min(x  * S + distance);
 
-                if distance / S + x >= xs {
+                if distance / S + x >= xs || x * S + distance >= W + PAD {
                     continue;
                 }
 
@@ -54,9 +54,9 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                 let src_end_offset = src_start_offset + W + rp - (x * S + distance);
 
                 for (d,s) in (&mut r[
-                    dst_start_offset..(dst_end_offset.max(dst_start_offset))
+                    dst_start_offset..dst_end_offset
                 ]).chunks_mut(FW).step_by(FH * distance / S).zip((&image[
-                    src_start_offset..(src_end_offset.max(src_start_offset))
+                    src_start_offset..src_end_offset
                 ]).chunks(distance)) {
                     for (d,s) in d.iter_mut().zip(s.iter()) {
                         *d = *s;
