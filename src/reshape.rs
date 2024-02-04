@@ -55,11 +55,31 @@ pub fn im2col<'a,T,const H:usize,const W:usize,const FH:usize,const FW:usize,con
                 let dst_end_offset = (y * FH * xs) * FW + xs * FH * FW;
                 let src_end_offset = src_start_offset + W + rp - (x * S + distance);
 
+                let chunk_size = (dist + x) / 8;
+
+                if chunk_size > 0 {
+                    let chunks = (&mut r[
+                        dst_start_offset..dst_end_offset
+                    ]).chunks_mut(FW).step_by(FH * dist).zip((&image[
+                        src_start_offset..src_end_offset
+                    ]).chunks(distance));
+
+                    let chunks_iter = chunks.chunks(chunk_size);
+
+                    for (_,chunk) in (0..8).zip(chunks_iter.into_iter()) {
+                        for (d,s) in chunk.into_iter() {
+                            for (d,s) in d.iter_mut().zip(s.iter()) {
+                                *d = *s;
+                            }
+                        }
+                    }
+                }
+
                 for (d,s) in (&mut r[
                     dst_start_offset..dst_end_offset
                 ]).chunks_mut(FW).step_by(FH * dist).zip((&image[
                     src_start_offset..src_end_offset
-                ]).chunks(distance)) {
+                ]).chunks(distance)).skip(chunk_size * 8) {
                     for (d,s) in d.iter_mut().zip(s.iter()) {
                         *d = *s;
                     }
